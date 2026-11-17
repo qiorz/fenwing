@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-17",
+  "host": {
+    "platform": "openharmony",
+    "target": "aarch64-unknown-linux-ohos",
+    "cpuCores": 16,
+    "memoryGB": 16,
+    "device": "HUAWEI MatePad Edge"
+  },
+  "required": {
+    "devecoSdkHome": "/data/service/hnp/hmos-clt.org/hmos-clt_1.0.0/sdk",
+    "sdkClang": {
+      "path": "$DEVECO_SDK_HOME/default/openharmony/native/llvm/bin/clang++",
+      "version": "15.0.4",
+      "target": "aarch64-unknown-linux-ohos",
+      "role": "compatibility baseline for OHOS NDK builds and hvigor native module"
+    },
+    "homebrewClang": {
+      "path": "$HOME/.harmonybrew/opt/llvm@22/bin/clang++",
+      "version": "22.1.8",
+      "role": "primary compiler for Gecko/SpiderMonkey bring-up"
+    },
+    "lld": {
+      "path": "$HOME/.harmonybrew/opt/lld@22/bin/ld.lld",
+      "version": "22.1.8",
+      "role": "linker for clang 22 Gecko builds"
+    },
+    "cmake": {
+      "path": "$DEVECO_SDK_HOME/default/openharmony/native/build-tools/cmake/bin/cmake",
+      "version": "3.28.2"
+    },
+    "ninja": {
+      "path": "$DEVECO_SDK_HOME/default/openharmony/native/build-tools/cmake/bin/ninja",
+      "version": "1.13.2"
+    },
+    "python": {
+      "path": "$DEVECO_SDK_HOME/default/openharmony/native/llvm/python3/bin/python3",
+      "version": "3.12.10"
+    },
+    "rustc": {
+      "path": "$HOME/.harmonybrew/bin/rustc",
+      "version": "1.99.1",
+      "host": "aarch64-unknown-linux-ohos",
+      "installedTargets": [
+        "aarch64-unknown-linux-ohos",
+        "armv7-unknown-linux-ohos",
+        "loongarch64-unknown-linux-ohos",
+        "x86_64-unknown-linux-ohos"
+      ]
+    },
+    "cargo": {
+      "path": "$HOME/.harmonybrew/bin/cargo",
+      "version": "1.99.1"
+    },
+    "git": {
+      "path": "$HOME/.harmonybrew/bin/git",
+      "version": "2.56.1"
+    },
+    "node": {
+      "path": "node",
+      "version": "26.10.0"
+    },
+    "hvigor": {
+      "path": "$DEVECO_SDK_HOME/../hvigor/bin/hvigorw",
+      "bundled": true
+    },
+    "devecocli": {
+      "path": "$HOME/.deveco/bin/devecocli",
+      "version": "1.3.4"
+    }
+  },
+  "validation": {
+    "checkedAt": "2026-11-17",
+    "checks": [
+      {
+        "id": "L0-clang",
+        "command": "$DEVECO_SDK_HOME/default/openharmony/native/llvm/bin/clang++ --version",
+        "expected": "15.0.4",
+        "result": "pass"
+      },
+      {
+        "id": "L0-clang22",
+        "command": "$HOME/.harmonybrew/opt/llvm@22/bin/clang++ --version",
+        "expected": "22.1.8",
+        "result": "pass"
+      },
+      {
+        "id": "L0-cmake",
+        "command": "cmake --version",
+        "expected": "3.28.2",
+        "result": "pass"
+      },
+      {
+        "id": "L0-ninja",
+        "command": "ninja --version",
+        "expected": "1.13.2",
+        "result": "pass"
+      },
+      {
+        "id": "L0-python",
+        "command": "python3 --version",
+        "expected": "3.12.10",
+        "result": "pass"
+      },
+      {
+        "id": "L0-rustc",
+        "command": "rustc --version",
+        "expected": "1.99.1",
+        "result": "pass"
+      },
+      {
+        "id": "L0-git",
+        "command": "git --version",
+        "expected": "2.56.1",
+        "result": "pass"
+      },
+      {
+        "id": "L0-rust-ohos-target",
+        "command": "rustc --print target-list | grep aarch64-unknown-linux-ohos",
+        "expected": "target present",
+        "result": "pass"
+      }
+    ]
+  },
+  "notes": [
+    "Custom executable files run directly from writable directories return EPERM on this device; never make standalone binary execution an acceptance criterion.",
+    "All native code must ship as .so files embedded in the HAP/HSP.",
+    "Do not declare ohos.permission.kernel.ALLOW_EXECUTABLE_FORT_MEMORY without written ACL approval; declaring it without approval breaks installation."
+  ]
+}

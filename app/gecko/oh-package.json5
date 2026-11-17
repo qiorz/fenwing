@@ -1,0 +1,11 @@
+{
+  "name": "gecko",
+  "version": "1.0.0",
+  "description": "Gecko engine bridge for HarmonyOS: NAPI module, embedding layer and prebuilt native libraries.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "libgecko_napi.so": "file:./src/main/cpp/types/libgecko_napi"
+  }
+}

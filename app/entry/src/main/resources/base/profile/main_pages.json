@@ -1,0 +1,7 @@
+{
+  "src": [
+    "pages/BrowserPage",
+    "pages/Index",
+    "pages/JsSmokePage"
+  ]
+}

@@ -1,0 +1,5 @@
+# Define project specific obfuscation rules here.
+# Keep native NAPI module names stable: the .so is resolved by name at runtime.
+
+-keep-global-name
+-keep-property-name

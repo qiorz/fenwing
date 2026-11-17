@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# HarmonyOS / hvigor
+# ---------------------------------------------------------------------------
+/oh_modules
+**/build
+/.hvigor
+.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/.appanalyzer
+/.bitfun
+/local.properties
+
+# ---------------------------------------------------------------------------
+# Gecko upstream source and out-of-tree build tree (large, reproducible)
+# ---------------------------------------------------------------------------
+/third_party/gecko/source/
+/build/gecko/obj-aarch64-ohos/
+/build/gecko/rust-target/
+/build/gecko/mozbuild-state/
+/build/gecko/artifacts/*
+!/build/gecko/artifacts/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Native artifacts staged into the HSP
+#   gecko/src/main/libs -> linked by CMake
+#   gecko/libs          -> collected by hvigor ProcessLibs
+# ---------------------------------------------------------------------------
+/gecko/src/main/libs/**/*.so
+/gecko/src/main/libs/**/include/
+!/gecko/src/main/libs/arm64-v8a/.gitkeep
+/gecko/libs/**/*.so
+/gecko/libs/**/include/
+!/gecko/libs/arm64-v8a/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Rust
+# ---------------------------------------------------------------------------
+/gecko/rust/**/target/
+Cargo.lock
+
+# ---------------------------------------------------------------------------
+# Local scratch
+# ---------------------------------------------------------------------------
+*.log
+/scripts/__pycache__/

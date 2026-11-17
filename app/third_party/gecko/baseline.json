@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "status": "unpinned",
+  "channel": "esr",
+  "tag": "",
+  "commit": "",
+  "lockedAt": "",
+  "lockedBy": "",
+  "rollbackBaseline": {
+    "channel": "esr",
+    "note": "ESR 115 is the bring-up fallback only; it is NOT a product baseline."
+  },
+  "notes": [
+    "M0 locks the latest ESR tag once the build pipeline produces libmozjs.so.",
+    "scripts/fetch_gecko.py refuses to clone while tag is empty; pass --tag to override.",
+    "Do not guess a tag: read it from the upstream repository at lock time."
+  ]
+}

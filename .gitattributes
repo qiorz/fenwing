@@ -1,0 +1,15 @@
+* text=auto eol=lf
+
+*.patch text eol=lf
+*.sh    text eol=lf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.so   binary
+*.ja   binary
+*.hap  binary
+*.hsp  binary
+*.zip  binary
+*.gz   binary
+*.xz   binary

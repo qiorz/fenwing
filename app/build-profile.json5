@@ -1,0 +1,65 @@
+{
+  "app": {
+    // ------------------------------------------------------------------
+    // 签名配置不随仓库发布。
+    //
+    // 本机构建方式（推荐）：
+    //   DevEco Studio 打开本工程 → File > Project Structure > Signing Configs
+    //   → 勾选 "Automatically generate signature" → Apply
+    //   IDE 会把本机证书路径与我（本机）口令写进本文件，构建即可签名。
+    //
+    // 提交前请确认 `git diff app/build-profile.json5` 里没有出现 p12/cer/p7b
+    // 路径或 storePassword / keyPassword。仓库的 .gitignore 已尽可能兜底，
+    // 但签名信息是写在这个受版本管理的文件里的，唯一的保险是提交前看一眼。
+    // ------------------------------------------------------------------
+    "signingConfigs": [],
+    "products": [
+      {
+        "name": "default",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": "26.0.0",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gecko",
+      "srcPath": "./gecko",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

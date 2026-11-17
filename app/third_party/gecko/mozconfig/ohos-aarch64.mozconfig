@@ -1,0 +1,63 @@
+# mozconfig for HarmonyOS API 26 / aarch64 - SpiderMonkey minimal build (M1)
+#
+# Sourced by bash through MOZCONFIG=<this file>. Do not add comments after
+# option values on the same line.
+#
+# Status: NOT YET VALIDATED. aarch64-unknown-linux-ohos is not an upstream
+# Gecko target; patches/0001-ohos-target.patch must add it (configure target,
+# CPU detection, sysroot, libc feature checks). Until G1 passes this file is a
+# contract, not evidence.
+#
+# Open work items for 0001-ohos-target.patch:
+#   1. add the aarch64-unknown-linux-ohos target triple to moz.configure
+#   2. map OHOS to the linux-gnu-ish feature set (pthreads, epoll, mmap)
+#   3. make NSPR/XPCOM use the OHOS sysroot headers instead of host glibc
+#   4. disable JIT / wasm baseline for this target (no executable memory ACL)
+#   5. teach mozbuild which Rust target to pass to cargo
+
+# ---------------------------------------------------------------------------
+# Toolchain
+# ---------------------------------------------------------------------------
+export DEVECO_SDK_HOME="${DEVECO_SDK_HOME:-/data/service/hnp/hmos-clt.org/hmos-clt_1.0.0/sdk}"
+export OHOS_NDK="${DEVECO_SDK_HOME}/default/openharmony/native"
+export OHOS_SYSROOT="${OHOS_NDK}/sysroot"
+export HOMEBREW_LLVM="${HOME}/.harmonybrew/opt/llvm@22"
+export HOMEBREW_LLD="${HOME}/.harmonybrew/opt/lld@22"
+
+export CC="${HOMEBREW_LLVM}/bin/clang"
+export CXX="${HOMEBREW_LLVM}/bin/clang++"
+export AR="${HOMEBREW_LLVM}/bin/llvm-ar"
+export NM="${HOMEBREW_LLVM}/bin/llvm-nm"
+export RANLIB="${HOMEBREW_LLVM}/bin/llvm-ranlib"
+export STRIP="${HOMEBREW_LLVM}/bin/llvm-strip"
+
+export TARGET_SYSROOT_FLAGS="--target=aarch64-unknown-linux-ohos --sysroot=${OHOS_SYSROOT}"
+export CFLAGS="${TARGET_SYSROOT_FLAGS} -fPIC -O2"
+export CXXFLAGS="${CFLAGS} -stdlib=libc++"
+export LDFLAGS="${TARGET_SYSROOT_FLAGS} -fuse-ld=lld -L${OHOS_SYSROOT}/usr/lib/aarch64-linux-ohos"
+
+# Rust: the Harmonybrew toolchain is itself aarch64-unknown-linux-ohos.
+export RUSTC="${HOME}/.harmonybrew/bin/rustc"
+export CARGO="${HOME}/.harmonybrew/bin/cargo"
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER="${OHOS_NDK}/llvm/bin/aarch64-unknown-linux-ohos-clang"
+
+# Keep build caches under the project (the device has no shared ccache).
+export CCACHE_DISABLE=1
+
+# ---------------------------------------------------------------------------
+# Build configuration (SpiderMonkey only)
+# ---------------------------------------------------------------------------
+ac_add_options --enable-project=js
+ac_add_options --target=aarch64-unknown-linux-ohos
+ac_add_options --enable-shared-js
+ac_add_options --enable-optimize
+ac_add_options --disable-debug
+ac_add_options --disable-tests
+ac_add_options --disable-jemalloc
+ac_add_options --disable-dtrace
+ac_add_options --disable-profiling
+ac_add_options --without-intl-api
+
+# Interpreter-first policy (plan.md D6). If configure rejects --disable-jit on
+# the target, remove this line: JIT stays off through target support anyway.
+ac_add_options --disable-jit

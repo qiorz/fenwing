@@ -1,0 +1,27 @@
+# 0001-ohos-target.patch - PLACEHOLDER (no diff yet)
+#
+# Purpose : add aarch64-unknown-linux-ohos as a first-class Gecko build target
+# Scope   : moz.configure, build/moz.configure/*, python/mozbuild/mozbuild/*
+# Upstream: none
+# Owner   : build / infrastructure
+# Status  : skeleton - becomes a real patch once the ESR baseline is locked
+#
+# Why this file has no diff:
+#   The repository intentionally does not ship a guessed patch against an
+#   unpinned upstream revision. `scripts/fetch_gecko.py` detects the missing
+#   `diff --git` line and reports "SKIPPED (placeholder)" instead of failing.
+#
+# Checklist to turn this into a real patch:
+#   [ ] moz.configure: accept --target=aarch64-unknown-linux-ohos
+#   [ ] build/moz.configure/init.configure: OS_TARGET=OHOS, kernel=Linux mapping
+#   [ ] build/moz.configure/toolchain.configure: use ${CXX} / ${CC} from mozconfig
+#   [ ] build/moz.configure/rust.configure: pass --target aarch64-unknown-linux-ohos to cargo
+#   [ ] python/mozbuild/mozbuild/configure/...: sysroot directory lookup
+#   [ ] js/src: disable JIT/wasm baseline for OHOS (no executable-memory ACL)
+#   [ ] verify: python3 mach build --enable-project=js produces libmozjs.so
+#
+# How to regenerate:
+#   cd third_party/gecko/source
+#   git checkout -b ohos/aarch64-bringup
+#   # ... edit ...
+#   git diff > ../../patches/0001-ohos-target.patch

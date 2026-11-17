@@ -1,0 +1,13 @@
+{
+  "module": {
+    "name": "gecko",
+    "type": "shared",
+    "description": "$string:shared_desc",
+    "deviceTypes": [
+      "tablet",
+      "2in1"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false
+  }
+}

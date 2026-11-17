@@ -1,0 +1,10 @@
+# OpenHarmony (API 26) cross build for Gecko 142 (mozilla-central pinned 5836a06)
+ac_add_options --enable-application=mobile/ohos
+ac_add_options --target=aarch64-unknown-linux-ohos
+ac_add_options --enable-bootstrap=no-update
+ac_add_options --disable-jemalloc
+ac_add_options --enable-optimize
+ac_add_options --disable-debug
+ac_add_options --disable-tests
+ac_add_options --disable-updater
+ac_add_options --disable-crashreporter

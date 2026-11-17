@@ -1,0 +1,40 @@
+# ── 签名材料：绝对不要入库 ─────────────────────────────────────────
+*.p12
+*.p7b
+*.cer
+*.csr
+*.jks
+*.keystore
+signing/
+README-password.txt
+*.password
+
+# ── HarmonyOS / hvigor / IDE 产物（只作用于 app/）─────────────────
+/app/**/oh_modules/
+/app/**/build/
+/app/**/.hvigor/
+/app/.idea/
+/app/**/.cxx/
+/app/local.properties
+.clangd
+.clang-tidy
+*.iml
+
+# ── 内核二进制：体积过大，走 GitHub Releases ──────────────────────
+/app/gecko/libs/**/*.so
+/app/gecko/src/main/libs/**/*.so
+/app/gecko/src/main/libs/**/include/
+/app/gecko/src/main/resources/rawfile/omni.ja
+**/omni.ja
+**/*.hap
+**/*.hsp
+**/*.har
+
+# ── 日志 / 临时文件 ───────────────────────────────────────────────
+*.log
+**/__pycache__/
+**/.DS_Store
+Thumbs.db
+
+# ── Release 构建产物（上传到 GitHub Releases，不入库）─────────────
+/dist/

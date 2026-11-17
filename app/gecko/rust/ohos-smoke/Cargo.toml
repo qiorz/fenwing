@@ -1,0 +1,20 @@
+[package]
+name = "ohos-smoke"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "M0 smoke cdylib: proves ArkTS -> NAPI -> Rust works on HarmonyOS"
+
+[lib]
+name = "ohos_smoke"
+crate-type = ["cdylib"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "debuginfo"
