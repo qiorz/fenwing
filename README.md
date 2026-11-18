@@ -233,7 +233,7 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
 | 随包材料 | `legal/LICENSE-MPL-2.0.txt`、`THIRD-PARTY-NOTICES.txt`、`SOURCE-OFFER.txt` |
 | 源码获取 | [SOURCE-OFFER.md](docs/SOURCE-OFFER.md) + 本仓库 `engine/` 补丁 |
 | LGPL 组件 | FFmpeg / libvpx 动态库链接，未改源码 |
-| 隐私 | 无遥测、无自动崩溃上传；历史/书签/下载仅存本机 |
+| 隐私 | 无遥测、无自动崩溃上传；历史/书签/下载仅存本机（[PRIVACY.md](docs/PRIVACY.md)） |
 
 正式发布前仍需：自有签名证书与 Profile、包名改为自有反写域名、第三方许可法务复核。
 
@@ -271,7 +271,7 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
   [P2-2](docs/Firefox移植-P2-2浏览器壳完善.md) · [P2-3](docs/Firefox移植-P2-3体积与性能.md) ·
   [P3](docs/Firefox移植-P3工程化.md) · [P4](docs/Firefox移植-P4合规与分发.md)
 - [性能基线（JIT vs 解释器）](docs/Firefox移植-性能基线报告.md)
-- 合规：[SOURCE-OFFER](docs/SOURCE-OFFER.md) · [THIRD-PARTY-NOTICES](docs/THIRD-PARTY-NOTICES.md)
+- 合规：[SOURCE-OFFER](docs/SOURCE-OFFER.md) · [THIRD-PARTY-NOTICES](docs/THIRD-PARTY-NOTICES.md) · [PRIVACY](docs/PRIVACY.md)
 - 工程规范：[spec/](app/spec/gecko-porting-program/)（决策包、风险登记、安全合规、上游维护）
 
 ## 为什么二进制不在 Git 里
@@ -279,7 +279,7 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
 GitHub 单文件硬上限 100 MB，而 `libxul.so` 185 MB、`omni.ja` 20 MB、HSP 250 MB。
 Git LFS 免费额度 1 GB 存储 / 1 GB 月流量，一次克隆就会耗掉大半。所以：
 
-- **代码 / 补丁 / 文档** → Git（仓库约 15 MB）
+- **代码 / 补丁 / 文档** → Git（仓库约 13 MB）
 - **内核二进制** → [Releases](releases)（带 `SHA256SUMS`）
 - **构建树 / 日志 / 签名材料** → 不入库（`.gitignore` 已兜底）
 

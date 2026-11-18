@@ -87,9 +87,13 @@ libnspr4/libnss3/libgkcodecs/libmozjs…   14 个运行时依赖
 # 1) strip 所有运行库（302 MB -> 213 MB）
 bash ../scripts/p23-strip.sh
 
-# 2) omni.ja 用 deflate 重打（65.5 MB -> 20.4 MB），Omnijar 支持 deflate
-#    注意：build-omni.sh 默认仍是 STORED，重打时用 zip -6
-bash ../scripts/build-omni.sh --deflate      # 或手工：zip -6 -r omni.ja .
+# 2) omni.ja 用 deflate 重打（65.5 MB -> 20.4 MB）
+#    注意：build-omni.sh 用的是 zip -0（STORED），要 deflate 版需手工执行同一份条目表：
+cd obj-aarch64-unknown-linux-ohos/dist/bin
+zip -6 -r -X /tmp/omni.ja \
+  chrome defaults components modules res actors hyphenation localization dictionaries \
+  platform.ini chrome.manifest greprefs.js application.ini
+cp /tmp/omni.ja /path/to/app/gecko/src/main/resources/rawfile/omni.ja
 ```
 
 ### JIT（可选）
