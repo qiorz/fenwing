@@ -1,4 +1,4 @@
-AirWeb — Gecko 引擎二进制包 v1.1.0
+Fenwing — Gecko 引擎二进制包 v1.2.0
 ==================================
 
 内容
@@ -48,7 +48,7 @@ AirWeb — Gecko 引擎二进制包 v1.1.0
 
 许可
 ----
-  AirWeb 使用 Mozilla Public License 2.0。二进制来自 MPL-2.0 的 Gecko 代码，
+  Fenwing 使用 Mozilla Public License 2.0。二进制来自 MPL-2.0 的 Gecko 代码，
   对应源码的获取方式见仓库 SOURCE-OFFER.md 与 engine/PROVENANCE.md。
   FFmpeg / libvpx 以动态库形式链接（LGPL-2.1+ / BSD），未修改源码。
   "Firefox"、"Gecko" 是 Mozilla Foundation 的商标；本项目与 Mozilla 无隶属关系，

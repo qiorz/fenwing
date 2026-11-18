@@ -1,10 +1,10 @@
-AirWeb — NOTICE
+Fenwing — NOTICE
 ===============
 
 本仓库（不含 Releases 中的二进制附件）以 Mozilla Public License 2.0 发布，
 全文见 LICENSE 与 docs/LICENSE-MPL-2.0.txt。
 
-AirWeb 曾用名 "Firefox for HarmonyOS"，2026-11-18 按 Mozilla 商标政策更名。
+Fenwing 曾用名 "Firefox for HarmonyOS"（中间短暂使用 AirWeb，因重名弃用），2026-11-18 按 Mozilla 商标政策去品牌化。
 本项目与 Mozilla 无隶属、赞助或背书关系。
 
 一、本仓库原创部分
@@ -45,12 +45,12 @@ AirWeb 曾用名 "Firefox for HarmonyOS"，2026-11-18 按 Mozilla 商标政策�
 
 三、商标
 --------
-"Firefox"、"Gecko"、"Mozilla" 是 Mozilla Foundation 的商标。AirWeb 不使用 Firefox
+"Firefox"、"Gecko"、"Mozilla" 是 Mozilla Foundation 的商标。Fenwing 不使用 Firefox
 名称、Logo 或图标，也不暗示 Mozilla 官方背书；"基于 Gecko 142" 仅为技术事实描述。
 应用图标为本工程自绘占位图。
 
 四、二进制附件与源码获取
 ------------------------
-Releases 中的 airweb-engine-1.1.0.zip 由本仓库补丁 + 上述上游构建而成，按 MPL-2.0
+Releases 中的 fenwing-engine-1.2.0.zip 由本仓库补丁 + 上述上游构建而成，按 MPL-2.0
 分发。对应源码获取方式见 docs/SOURCE-OFFER.md 与 engine/PROVENANCE.md 第 4 节；
 Gecko 基线修订公开可得，移植改动即本仓库 engine/patches/。

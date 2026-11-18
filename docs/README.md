@@ -3,8 +3,8 @@
 这些文档是移植过程的原始记录，按阶段排列。数字、日志、限制条件都来自真机验证
 （HUAWEI MatePad Edge QXS-W00 / HarmonyOS 7.0.0.111 / API 26 / arm64-v8a）。
 
-> 2026-11-18：项目更名为 **AirWeb**（原名 "Firefox for HarmonyOS"），文档标题保留历史名称，
-> 正文中的产品名以 AirWeb 为准。
+> 2026-11-18：项目去掉 Firefox 品牌，先定名 AirWeb，因重名同日改用 **Fenwing**。
+> 文档标题保留历史名称，正文中的产品名以 Fenwing 为准。
 
 | 文档 | 内容 | 阶段 |
 |---|---|---|

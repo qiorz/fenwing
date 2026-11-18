@@ -1,4 +1,4 @@
-# THIRD-PARTY NOTICES — AirWeb（Gecko for HarmonyOS）
+# THIRD-PARTY NOTICES — Fenwing（Gecko for HarmonyOS）
 
 本应用包含下列第三方组件。完整许可文本随应用提供于 `legal/LICENSE-MPL-2.0.txt`，
 或从各项目主页获取。

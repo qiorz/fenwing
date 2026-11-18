@@ -1,6 +1,6 @@
 # SOURCE OFFER — 对应源码获取说明（MPL-2.0 / LGPL 合规）
 
-本应用（AirWeb）包含 MPL-2.0 与 LGPL-2.1+ 组件。按许可证要求，提供对应源码获取方式：
+本应用（Fenwing）包含 MPL-2.0 与 LGPL-2.1+ 组件。按许可证要求，提供对应源码获取方式：
 
 ## 1. Gecko 引擎（MPL-2.0）
 

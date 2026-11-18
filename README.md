@@ -1,26 +1,27 @@
 <div align="center">
 
-# AirWeb
+# Fenwing
 
 **把 Gecko 内核装进鸿蒙平板的独立浏览器 —— ArkTS 外壳 + 可复现的内核移植补丁**
 
 Gecko 142 (mozilla-central `5836a062`) · HarmonyOS 7 / API 26 · arm64-v8a · DevEco Studio 5/6 · MPL-2.0
 
-![AirWeb](evidence/01-airweb.jpg)
+![Fenwing](evidence/01-fenwing.jpg)
 
 </div>
 
-> **English TL;DR** — AirWeb is an independent, Gecko-based browser for HarmonyOS / OpenHarmony
+> **English TL;DR** — Fenwing is an independent, Gecko-based browser for HarmonyOS / OpenHarmony
 > arm64. The engine (`libxul.so`, Firefox 142 branch) is cross-compiled in WSL with the OHOS NDK;
 > an ArkTS shell drives it through a NAPI bridge and renders into an `XComponent`. It browses the
 > real web, handles IME and touch, manages tabs/downloads/history, survives crashes with session
 > recovery, and squeezes the install down to 250 MB. Engine binaries live in
 > [Releases](releases); the exact engine tree is reproduced by one patch in [`engine/`](engine/).
-> Renamed from “Firefox for HarmonyOS” for Mozilla trademark compliance — no affiliation with Mozilla.
+> Renamed from “Firefox for HarmonyOS” in 2026 (briefly “AirWeb”, which was already in use) — no affiliation with Mozilla.
 
-> **关于名字**：本项目原名 “Firefox for HarmonyOS”，2026-11-18 按 P4 合规要求更名为 **AirWeb**：
-> 应用名、窗口标题、界面文案不再使用 Firefox 品牌，只保留“基于 Gecko 142”这一事实描述。
-> GitHub 仓库地址沿用 `firefox-ohos` 作为历史链接。技术上完全是同一套 Gecko 内核 + OHOS 移植层。
+> **关于名字**：本项目原名 “Firefox for HarmonyOS”，2026-11-18 按 P4 合规要求去掉 Firefox 品牌。
+> 先定名 AirWeb，因与既有项目重名，同日改用 **Fenwing**。应用名、窗口标题、界面文案均为 Fenwing，
+> 只保留“基于 Gecko 142”这一事实描述。仓库已迁移到 [`qiorz/fenwing`](https://github.com/qiorz/fenwing)，
+> 旧地址会自动跳转；技术上仍是同一套 Gecko 内核 + OHOS 移植层。
 
 ---
 
@@ -139,7 +140,7 @@ CI LOCAL: PASS
 ## 仓库结构
 
 ```
-airweb/  (repo: firefox-ohos)
+fenwing/  (repo: fenwing)
 ├─ app/                  DevEco 工程（entry HAP + gecko HSP）
 │  ├─ entry/src/main/ets/    ArkTS 外壳（BrowserPage/AddressBar/TabBar/Downloads…）
 │  ├─ entry/src/main/resources/rawfile/legal/   随包许可：MPL 全文、第三方清单、Source Offer
@@ -161,7 +162,7 @@ airweb/  (repo: firefox-ohos)
 
 ### 路线 A：用现成引擎产物（约 10 分钟）
 
-1. 到 [Releases](releases) 下载 `airweb-engine-1.1.0.zip`（约 180 MB）。
+1. 到 [Releases](releases) 下载 `fenwing-engine-1.2.0.zip`（约 180 MB）。
 2. 装好 **DevEco Studio**（HarmonyOS SDK **API 26**）与 `hdc`。
 3. 铺引擎：
 
@@ -228,7 +229,7 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
 
 | 项 | 处理 |
 |---|---|
-| 应用名 / 界面 | **AirWeb**；不再出现 Firefox 品牌；不使用 Mozilla Logo |
+| 应用名 / 界面 | **Fenwing**；不再出现 Firefox 品牌；不使用 Mozilla Logo |
 | 许可 | MPL-2.0；修改过的 Gecko 文件保留 MPL 头 |
 | 随包材料 | `legal/LICENSE-MPL-2.0.txt`、`THIRD-PARTY-NOTICES.txt`、`SOURCE-OFFER.txt` |
 | 源码获取 | [SOURCE-OFFER.md](docs/SOURCE-OFFER.md) + 本仓库 `engine/` 补丁 |
@@ -290,12 +291,12 @@ Git LFS 免费额度 1 GB 存储 / 1 GB 月流量，一次克隆就会耗掉大�
 - OHOS 平台适配层参考并基于社区项目
   [`ohos_gecko-opensource`](https://gitcode.com/OpenHarmonyPCDeveloper/ohos_gecko-opensource)（MPL-2.0），
   来源与差异见 [engine/PROVENANCE.md](engine/PROVENANCE.md)。
-- “Firefox”“Gecko” 是 Mozilla Foundation 的商标。**AirWeb 与 Mozilla 无隶属、赞助或背书关系**，
+- “Firefox”“Gecko” 是 Mozilla Foundation 的商标。**Fenwing 与 Mozilla 无隶属、赞助或背书关系**，
   仅在技术事实层面说明“基于 Gecko 142”；不发布 Mozilla 品牌资源。
 - 第三方组件清单见 [NOTICE](NOTICE) 与 [THIRD-PARTY-NOTICES](docs/THIRD-PARTY-NOTICES.md)。
 
 ---
 
 <div align="center">
-<sub>WSL + OHOS NDK 交叉编译，在平板上真正跑起来的内核移植 · 2026-11-18 · v1.1.0</sub>
+<sub>WSL + OHOS NDK 交叉编译，在平板上真正跑起来的内核移植 · 2026-11-18 · v1.2.0</sub>
 </div>

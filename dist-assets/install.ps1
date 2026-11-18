@@ -1,7 +1,7 @@
-# Firefox for HarmonyOS — 引擎二进制安装脚本（Windows / PowerShell）
+# Fenwing — 引擎二进制安装脚本（Windows / PowerShell）
 #
 # 用法：把本压缩包解到任意目录，然后：
-#   powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppPath D:\path\to\firefox-ohos\app
+#   powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppPath D:\path\to\fenwing\app
 #
 # 它会把你下载的引擎产物按 app/ 目录期望的位置铺好。
 

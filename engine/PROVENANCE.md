@@ -37,7 +37,7 @@ HarmonyOS/OpenHarmony 平台适配层并非从零开始，它站在社区工作�
 - `omni.ja` 目录形式传参、`libgeckoxcomp.so` 去 build-id、自建 `libz.so`；
 - `omni.ja` 打包改为 deflate（体积 65.5 → 20.4 MB）。
 
-**应用侧（AirWeb）**
+**应用侧（Fenwing）**
 
 - P0：`SessionStore` 防抖落盘、异常退出判定、20 s 加载看门狗、ArkTS 错误覆盖层，
   恢复横幅携带「上次停留 URL」；
@@ -49,11 +49,11 @@ HarmonyOS/OpenHarmony 平台适配层并非从零开始，它站在社区工作�
   地址栏历史/书签补全；
 - P3：`build-all` / `verify-snapshot` / `install-device` / `smoke-test` / `soak-test`
   与本地 CI；
-- P4：更名 AirWeb、随包许可三件套、权限与隐私说明。
+- P4：去 Firefox 品牌（AirWeb → Fenwing）、随包许可三件套、权限与隐私说明。
 
 ## 4. 二进制产物
 
-`Releases` 里的 `airweb-engine-1.1.0.zip` 由上述树编译：
+`Releases` 里的 `fenwing-engine-1.2.0.zip` 由上述树编译：
 
 | 文件 | 说明 |
 |---|---|
@@ -69,6 +69,7 @@ MPL-2.0 对二进制分发的要求是「提供对应源码的获取方式」—
 ## 5. 商标与更名
 
 “Firefox”“Gecko”“Mozilla” 是 Mozilla Foundation 的商标。本项目原名
-“Firefox for HarmonyOS”，2026-11-18 按 Mozilla 商标政策更名为 **AirWeb**：
+“Firefox for HarmonyOS”，2026-11-18 按 Mozilla 商标政策去掉 Firefox 品牌；先定名 AirWeb，
+因与既有项目重名，同日改用 **Fenwing**：
 应用名、窗口标题、界面文案不再使用 Firefox 品牌，仅保留“基于 Gecko 142”的技术事实描述。
-AirWeb 与 Mozilla 无隶属、赞助或背书关系，产物不随附任何 Mozilla 品牌资源。
+Fenwing 与 Mozilla 无隶属、赞助或背书关系，产物不随附任何 Mozilla 品牌资源。

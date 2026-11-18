@@ -1,12 +1,12 @@
-# AirWeb 隐私说明
+# Fenwing 隐私说明
 
-> 版本：1.1.0 · 更新：2026-11-18
-> 适用：AirWeb（HarmonyOS / OpenHarmony arm64，包名 `com.example.firefoxport`）的侧载、
+> 版本：1.2.0 · 更新：2026-11-18
+> 适用：Fenwing（HarmonyOS / OpenHarmony arm64，包名 `com.example.firefoxport`）的侧载、
 > 内测与企业分发版本。
 
 ## 一句话
 
-**AirWeb 不收集、不上传任何用户数据**：没有遥测、没有崩溃自动上报、没有账号系统，
+**Fenwing 不收集、不上传任何用户数据**：没有遥测、没有崩溃自动上报、没有账号系统，
 浏览记录只存在你的设备上。
 
 ## 我们处理哪些数据、存在哪
@@ -40,13 +40,13 @@
 
 ## 第三方组件
 
-AirWeb 包含 Gecko（MPL-2.0）、FFmpeg（LGPL-2.1+，动态链接）、libvpx（BSD-3-Clause）等组件，
+Fenwing 包含 Gecko（MPL-2.0）、FFmpeg（LGPL-2.1+，动态链接）、libvpx（BSD-3-Clause）等组件，
 详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。这些组件本身不含遥测；Gecko 的
 telemetry/crashreporter 在本构建中已关闭（`--disable-crashreporter`，未接入 telemetry 服务）。
 
 ## 变更与联系
 
 隐私说明随版本更新，历史版本见仓库提交记录。问题请开 Issue：
-<https://github.com/qiorz/firefox-ohos/issues>。
+<https://github.com/qiorz/fenwing/issues>。
 
 > 本文不构成法律意见；正式上架前请按发行地区法规复核。

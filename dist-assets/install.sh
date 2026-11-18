@@ -1,7 +1,7 @@
 #!/bin/bash
-# Firefox for HarmonyOS — engine binaries installer (Linux / macOS / WSL)
+# Fenwing — engine binaries installer (Linux / macOS / WSL)
 #
-# Usage: ./install.sh /path/to/firefox-ohos/app
+# Usage: ./install.sh /path/to/fenwing/app
 set -euo pipefail
 
 APP="${1:?usage: install.sh <path-to-app>}"

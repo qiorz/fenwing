@@ -6,7 +6,7 @@
 
 | 项 | 处理 |
 |---|---|
-| 应用显示名 | `firefoxport` → **AirWeb**（可在 `AppScope/resources/base/element/string.json` 一行修改） |
+| 应用显示名 | `firefoxport` → **Fenwing**（可在 `AppScope/resources/base/element/string.json` 一行修改） |
 | 界面文案 | 移除 "Firefox 基线" 字样，改为"Gecko 内核基线"（事实描述） |
 | 商标 | 不使用 Firefox 名称、Logo、图标；不暗示 Mozilla 官方背书 |
 | 包名 | 暂保留 `com.example.firefoxport`（不影响合规，正式发布前建议改为自有域名反写） |
@@ -77,7 +77,7 @@ LGPL（FFmpeg、libvpx）：动态库形式链接、未修改源码；提供源�
 
 ## 八、v1 已验证（2026-11-18 13:15）
 
-- 真机窗口标题/应用名显示 **AirWeb**（EntryAbility_label 与 pp_name 均改为 AirWeb）；
+- 真机窗口标题/应用名显示 **Fenwing**（EntryAbility_label 与 pp_name 均改为 Fenwing）；
 - erify-snapshot.ps1 新增项全 PASS：
   - legal 三件套随包（LICENSE/THIRD-PARTY/SOURCE-OFFER）
   - app_name 与 Index.ets 无 Firefox 品牌
