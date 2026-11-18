@@ -10,7 +10,7 @@
  */
 
 import { common } from '@kit.AbilityKit';
-import { picker, fileIo as p1fs } from '@kit.CoreFileKit';
+import { picker, fileIo as p1fs, fileUri } from '@kit.CoreFileKit';
 import { window as p1window } from '@kit.ArkUI';
 import { router } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
@@ -70,6 +70,20 @@ struct BrowserPage {
   @State private findQuery: string = '';
   @State private findMatchCase: boolean = false;
   @State private fullscreenUi: boolean = false;
+  @StorageProp('geckoMenuSeq') @Watch('onMenuEvent') geckoMenuSeq: number = 0;
+  @StorageProp('geckoMenu') geckoMenuRaw: string = '';
+  @State private menuVisible: boolean = false;
+  @State private menuId: number = 0;
+  @State private menuRows: Array<MenuRow> = [];
+  @State private menuX: number = 0;
+  @State private menuY: number = 0;
+  @State private contentWidth: number = 0;
+  @State private suggestions: Array<string> = [];
+  @State private showSuggestions: boolean = false;
+  private lastHistoryUrl: string = '';
+  @State private contentHeight: number = 0;
+  private menuTree: Array<MenuItem> = new Array<MenuItem>();
+  private expandedMenuIds: Array<number> = new Array<number>();
   private downloadHideTimer: number = -1;
   // Per-tab URL stacks used for back/forward (the port's session-history NAPI
   // is not available at runtime, so the shell tracks navigation itself).
@@ -83,8 +97,10 @@ struct BrowserPage {
   private nextEngineIndex: number = 1;
   @StorageProp('engineUnclean') engineUnclean: boolean = false;
   @StorageProp('skipResume') skipResume: boolean = false;
+  @StorageProp('debugCtxMenu') debugCtxMenu: boolean = false;
   @State private showRecoveryBanner: boolean = false;
   @State private recoveredCount: number = 0;
+  @State private recoveredLastUrl: string = '';
   @State private loadError: string = '';
   private loadWatchdog: number = -1;
   private loadSettled: boolean = true;
@@ -262,6 +278,105 @@ struct BrowserPage {
     }
   }
 
+  private onMenuEvent(): void {
+    if (this.geckoMenuRaw.length === 0) {
+      return;
+    }
+    try {
+      const payload: MenuPayload = JSON.parse(this.geckoMenuRaw) as MenuPayload;
+      if (payload === undefined || payload.items === undefined || payload.items.length === 0) {
+        return;
+      }
+      this.menuTree = payload.items;
+      this.expandedMenuIds = new Array<number>();
+      this.rebuildMenuRows();
+      if (this.menuRows.length === 0) {
+        return;
+      }
+      this.menuId = payload.menuId;
+      const ax: number = payload.anchor !== undefined ? payload.anchor.x : 0;
+      const ay: number = payload.anchor !== undefined ? payload.anchor.y : 0;
+      const ah: number = payload.anchor !== undefined ? payload.anchor.h : 0;
+      // Port delivers anchor in device px (CSS px * 3 in this chrome doc);
+      // ArkUI positions are vp, and CSS px ~= vp here, so divide by 3.
+      let x: number = Math.max(8, Math.floor(ax / 3));
+      let y: number = Math.max(8, Math.floor((ay + ah) / 3));
+      const menuWidth: number = 260;
+      const menuHeight: number = Math.min(420, this.menuRows.length * 36 + 12);
+      if (this.contentWidth > 0 && x + menuWidth > this.contentWidth - 8) {
+        x = Math.max(8, this.contentWidth - menuWidth - 8);
+      }
+      if (this.contentHeight > 0 && y + menuHeight > this.contentHeight - 8) {
+        y = Math.max(8, y - menuHeight - 8);
+      }
+      this.menuX = x;
+      this.menuY = y;
+      this.menuVisible = true;
+      hilog.info(DOMAIN, TAG, 'menu shown id=%{public}d rows=%{public}d', this.menuId, this.menuRows.length);
+    } catch (error) {
+      hilog.warn(DOMAIN, TAG, 'menu parse failed: %{public}s', JSON.stringify(error));
+    }
+  }
+
+  private flattenMenu(items: Array<MenuItem>, depth: number, out: Array<MenuRow>): void {
+    for (let i = 0; i < items.length; i++) {
+      const item: MenuItem = items[i];
+      if (item.hidden) {
+        continue;
+      }
+      const row = new MenuRow();
+      row.kind = item.kind;
+      row.id = item.id;
+      row.label = item.label;
+      row.accel = item.accel;
+      row.disabled = item.disabled;
+      row.checked = item.checked;
+      row.depth = depth;
+      row.hasChildren = item.items !== undefined && item.items.length > 0;
+      row.expanded = this.expandedMenuIds.indexOf(item.id) >= 0;
+      out.push(row);
+      if (row.hasChildren && row.expanded && depth < 3) {
+        this.flattenMenu(item.items as Array<MenuItem>, depth + 1, out);
+      }
+    }
+  }
+
+  private rebuildMenuRows(): void {
+    const rows: Array<MenuRow> = new Array<MenuRow>();
+    this.flattenMenu(this.menuTree, 0, rows);
+    this.menuRows = rows;
+  }
+
+  /** Expands/collapses a submenu row (port renders submenus flat). */
+  private toggleMenuRow(row: MenuRow): void {
+    const index: number = this.expandedMenuIds.indexOf(row.id);
+    if (index >= 0) {
+      this.expandedMenuIds.splice(index, 1);
+    } else {
+      this.expandedMenuIds.push(row.id);
+    }
+    this.rebuildMenuRows();
+  }
+
+  private tapMenuRow(row: MenuRow): void {
+    if (row.disabled || row.kind === 'separator' || row.id === 0) {
+      return;
+    }
+    if (row.hasChildren) {
+      this.toggleMenuRow(row);
+      return;
+    }
+    GeckoViewBoot.resolveMenuCommand(this.menuId, row.id, 0);
+    this.menuVisible = false;
+  }
+
+  private closeMenu(sendToGecko: boolean): void {
+    if (sendToGecko) {
+      GeckoViewBoot.closeNativeMenu(this.menuId);
+    }
+    this.menuVisible = false;
+  }
+
   private zoomBy(delta: number): void {
     this.zoomLevel = Math.min(3.0, Math.max(0.5, this.zoomLevel + delta));
     GeckoViewBoot.setFullZoom(this.zoomLevel);
@@ -323,11 +438,14 @@ struct BrowserPage {
       this.restoreSession(saved);
       if (this.engineUnclean) {
         this.recoveredCount = saved.tabs.length;
+        const lastIdx: number = Math.min(Math.max(saved.activeIndex, 0), saved.tabs.length - 1);
+        this.recoveredLastUrl = saved.tabs[lastIdx].url;
         this.showRecoveryBanner = true;
         setTimeout(() => {
           this.showRecoveryBanner = false;
         }, 8000);
-        hilog.warn(DOMAIN, TAG, 'unclean exit detected, restored %{public}d tabs', saved.tabs.length);
+        hilog.warn(DOMAIN, TAG, 'unclean exit detected, restored %{public}d tabs, last=%{public}s',
+          saved.tabs.length, this.recoveredLastUrl);
       } else {
         hilog.info(DOMAIN, TAG, 'session restored (%{public}d tabs)', saved.tabs.length);
       }
@@ -341,6 +459,18 @@ struct BrowserPage {
     }
     if (this.engineRenderReady) {
       this.startLoadWatchdog();
+    }
+    if (this.debugCtxMenu) {
+      setTimeout(() => {
+        const size = GeckoViewBoot.surfaceSize();
+        const cx: number = Math.round(size.width / 2);
+        const cy: number = Math.round(size.height / 2);
+        hilog.info(DOMAIN, TAG, 'ctxmenu probe at %{public}d,%{public}d', cx, cy);
+        GeckoViewBoot.mouseDown(cx, cy, 2);
+        setTimeout(() => {
+          GeckoViewBoot.mouseUp(cx, cy, 2);
+        }, 80);
+      }, 4000);
     }
     await this.refreshPanels();
   }
@@ -389,6 +519,10 @@ struct BrowserPage {
     }
     try {
       const event: TitleEvent = JSON.parse(this.geckoTitleEvent) as TitleEvent;
+      if (event.session === '__opentab__') {
+        this.openUrlInNewTab(event.url);
+        return;
+      }
       if (event.title.length === 0) {
         return;
       }
@@ -414,6 +548,84 @@ struct BrowserPage {
     }
   }
 
+  /** Creates a tab + engine session for a URL requested by the chrome menu. */
+  private openUrlInNewTab(url: string): void {
+    if (url.length === 0) {
+      return;
+    }
+    const created = this.viewModel.createTab(url);
+    const engineIndex: number = this.nextEngineIndex++;
+    this.bindEngineSession(created.id, engineIndex);
+    this.viewModel.activateTab(created.id);
+    GeckoViewBoot.createSession(engineIndex, url);
+    GeckoViewBoot.switchToSession(engineIndex);
+    this.viewModel.navigate(created.id, url);
+    this.pushHistory(created.id, url);
+    this.startLoadWatchdog();
+    this.repaintSoon();
+    this.syncTabs();
+    hilog.info(DOMAIN, TAG, 'openUrlInNewTab %{public}s idx=%{public}d', url, engineIndex);
+  }
+
+  /** Records the active engine URL into history once per navigation. */
+  private recordEngineHistory(): void {
+    if (this.privateMode) {
+      return;
+    }
+    const url: string = this.currentUrl;
+    if (!url.startsWith('http') || url === this.lastHistoryUrl) {
+      return;
+    }
+    this.lastHistoryUrl = url;
+    try {
+      const entry = HistoryEntry.create(PROFILE_ID, url, this.currentTitle);
+      this.database.addHistory(entry).then(() => {
+        this.refreshPanels();
+      }).catch((error: Object) => {
+        hilog.warn(DOMAIN, TAG, 'engine history write failed');
+      });
+    } catch (error) {
+      hilog.warn(DOMAIN, TAG, 'engine history create failed');
+    }
+  }
+
+  private onAddressInput(text: string): void {
+    if (text.length === 0) {
+      this.showSuggestions = false;
+      return;
+    }
+    const query: string = text.toLowerCase();
+    const seen: Array<string> = new Array<string>();
+    const hits: Array<string> = new Array<string>();
+    const add = (value: string): void => {
+      if (value.length === 0 || value === text || seen.indexOf(value) >= 0) {
+        return;
+      }
+      const lower: string = value.toLowerCase();
+      if (lower.indexOf(query) < 0 && lower.indexOf('http') !== 0) {
+        return;
+      }
+      if (lower.indexOf(query) < 0) {
+        return;
+      }
+      seen.push(value);
+      hits.push(value);
+    };
+    for (let i = 0; i < this.bookmarks.length && hits.length < 8; i++) {
+      add(this.bookmarks[i].url);
+    }
+    for (let i = 0; i < this.historyEntries.length && hits.length < 8; i++) {
+      add(this.historyEntries[i].url);
+    }
+    this.suggestions = hits;
+    this.showSuggestions = hits.length > 0;
+  }
+
+  private pickSuggestion(url: string): void {
+    this.showSuggestions = false;
+    this.navigate(url);
+  }
+
   private onGeckoPageLoadChanged(): void {
     this.loading = this.geckoPageLoad === 'start';
     if (this.loading) {
@@ -422,6 +634,7 @@ struct BrowserPage {
     } else {
       this.stopLoadWatchdog();
       this.refreshHistoryState();
+      this.recordEngineHistory();
     }
   }
 
@@ -717,6 +930,7 @@ struct BrowserPage {
       try {
         const entry = HistoryEntry.create(PROFILE_ID, resolved, title);
         await this.database.addHistory(entry);
+        this.lastHistoryUrl = resolved;
         await this.refreshPanels();
       } catch (error) {
         hilog.warn(DOMAIN, TAG, 'history write failed');
@@ -772,6 +986,65 @@ struct BrowserPage {
     } catch (error) {
       this.statusMessage = '清空历史失败。';
     }
+  }
+
+  private openDownload(id: string): void {
+    if (this.contextRef === undefined) {
+      return;
+    }
+    let path: string = '';
+    for (const record of this.downloadRecords) {
+      if (record.id === id) {
+        path = record.localPath;
+        break;
+      }
+    }
+    if (path.length === 0) {
+      return;
+    }
+    try {
+      const uri: string = fileUri.getUriFromPath(path);
+      let mime: string = '*/*';
+      const lower: string = path.toLowerCase();
+      if (lower.endsWith('.svg')) {
+        mime = 'image/svg+xml';
+      } else if (lower.endsWith('.png')) {
+        mime = 'image/png';
+      } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+        mime = 'image/jpeg';
+      } else if (lower.endsWith('.txt')) {
+        mime = 'text/plain';
+      } else if (lower.endsWith('.pdf')) {
+        mime = 'application/pdf';
+      }
+      this.contextRef.startAbility({
+        action: 'ohos.want.action.viewData',
+        uri: uri,
+        type: mime
+      }).catch((error: Object) => {
+        hilog.warn(DOMAIN, TAG, 'open download failed');
+      });
+    } catch (error) {
+      hilog.warn(DOMAIN, TAG, 'open download error');
+    }
+  }
+
+  private clearDownloads(): void {
+    const records: Array<DownloadRecord> = this.downloadRecords;
+    for (let i = 0; i < records.length; i++) {
+      const path: string = records[i].localPath;
+      if (path.length > 0) {
+        try {
+          p1fs.unlinkSync(path);
+        } catch (error) {
+        }
+      }
+    }
+    this.database.clearDownloads(PROFILE_ID).then(() => {
+      this.refreshPanels();
+    }).catch((error: Object) => {
+      hilog.warn(DOMAIN, TAG, 'clear downloads failed');
+    });
   }
 
   private async cancelDownload(id: string): Promise<void> {
@@ -855,11 +1128,11 @@ struct BrowserPage {
   @Builder
   panelButton(label: string, panel: string) {
     Button(label)
-      .fontSize(12)
-      .height(32)
+      .fontSize(11)
+      .height(26)
       .backgroundColor(this.activePanel === panel ? '#2A3550' : '#17171F')
       .fontColor(this.activePanel === panel ? '#CFE0FF' : '#A0A0B8')
-      .borderRadius(8)
+      .borderRadius(6)
       .onClick(() => {
         this.openPanel(panel);
       })
@@ -902,7 +1175,7 @@ struct BrowserPage {
     Column() {
       if (this.showRecoveryBanner) {
         Row({ space: 8 }) {
-          Text(`检测到上次异常退出，已自动恢复 ${this.recoveredCount} 个标签`)
+          Text(`检测到上次异常退出，已自动恢复 ${this.recoveredCount} 个标签${this.recoveredLastUrl.length > 0 ? '（上次停留：' + (this.recoveredLastUrl.length > 40 ? this.recoveredLastUrl.substring(0, 40) + '…' : this.recoveredLastUrl) + '）' : ''}`)
             .fontSize(12)
             .fontColor('#F2D9A0')
             .layoutWeight(1)
@@ -928,7 +1201,11 @@ struct BrowserPage {
         loading: this.loading,
         privateMode: this.privateMode,
         onNavigate: (input: string) => {
+          this.showSuggestions = false;
           this.navigate(input);
+        },
+        onInput: (text: string) => {
+          this.onAddressInput(text);
         },
         onBack: () => {
           this.back();
@@ -945,6 +1222,26 @@ struct BrowserPage {
       })
       }
 
+
+      if (this.showSuggestions && this.suggestions.length > 0) {
+        Column({ space: 2 }) {
+          ForEach(this.suggestions, (value: string) => {
+            Text(value)
+              .fontSize(12)
+              .fontColor('#CFE0FF')
+              .width('100%')
+              .padding({ left: 12, right: 12, top: 7, bottom: 7 })
+              .backgroundColor('#17171F')
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .onClick(() => {
+                this.pickSuggestion(value);
+              })
+          }, (value: string) => value)
+        }
+        .width('100%')
+        .backgroundColor('#12121A')
+      }
 
       if (this.downloadVisible) {
         Row({ space: 8 }) {
@@ -986,6 +1283,65 @@ struct BrowserPage {
               GeckoViewBoot.exitFullscreen();
             })
         }
+        if (this.menuVisible) {
+          Stack() {
+            Column() {
+            }
+            .width('100%')
+            .height('100%')
+            .onClick(() => {
+              this.closeMenu(true);
+            })
+            Scroll() {
+              Column({ space: 2 }) {
+                ForEach(this.menuRows, (row: MenuRow) => {
+                  if (row.kind === 'separator') {
+                    Divider()
+                      .strokeWidth(1)
+                      .color('#2A2A3A')
+                      .margin({ top: 3, bottom: 3 })
+                  } else {
+                    Row({ space: 6 }) {
+                      Text(row.hasChildren ? (row.expanded ? '▾' : '▸') : (row.checked ? '✓' : ''))
+                        .fontSize(12)
+                        .fontColor('#7FD18B')
+                        .width(14)
+                      Text(row.label)
+                        .fontSize(13)
+                        .fontColor(row.disabled ? '#5A5A6E' : '#E6E6F0')
+                        .layoutWeight(1)
+                        .maxLines(1)
+                        .textOverflow({ overflow: TextOverflow.Ellipsis })
+                      if (row.accel.length > 0) {
+                        Text(row.accel)
+                          .fontSize(10)
+                          .fontColor('#6E6E85')
+                      }
+                    }
+                    .width('100%')
+                    .padding({ left: 10 + row.depth * 12, right: 10, top: 7, bottom: 7 })
+                    .borderRadius(6)
+                    .backgroundColor('#242433')
+                    .onClick(() => {
+                      this.tapMenuRow(row);
+                    })
+                  }
+                }, (row: MenuRow) => `${row.id}|${row.label}|${row.checked}|${row.disabled}`)
+              }
+              .width('100%')
+            }
+            .width(260)
+            .constraintSize({ maxHeight: 420 })
+            .scrollBar(BarState.Off)
+            .backgroundColor('#1C1C26')
+            .borderRadius(10)
+            .padding(6)
+            .position({ x: Math.min(this.menuX, 900), y: Math.min(this.menuY, 700) })
+          }
+          .width('100%')
+          .height('100%')
+        }
+
         if (this.loadError.length > 0) {
           Column({ space: 14 }) {
             Text('页面加载失败')
@@ -1022,6 +1378,10 @@ struct BrowserPage {
         }
       }
       .width('100%')
+      .onAreaChange((oldArea: Area, newArea: Area) => {
+        this.contentWidth = Number(newArea.width);
+        this.contentHeight = Number(newArea.height);
+      })
       .layoutWeight(1)
 
       if (this.findVisible) {
@@ -1068,43 +1428,7 @@ struct BrowserPage {
         .backgroundColor('#12121A')
       }
 
-      Row({ space: 8 }) {
-        Button(this.findVisible ? '隐藏查找' : '查找')
-          .fontSize(12)
-          .height(30)
-          .backgroundColor('#1C1C26')
-          .fontColor('#C8C8DC')
-          .onClick(() => {
-            this.findVisible = !this.findVisible;
-          })
-        Blank()
-        Button('−')
-          .fontSize(16)
-          .width(34)
-          .height(30)
-          .backgroundColor('#1C1C26')
-          .fontColor('#E6E6F0')
-          .onClick(() => {
-            this.zoomBy(-0.1);
-          })
-        Text(`${Math.round(this.zoomLevel * 100)}%`)
-          .fontSize(12)
-          .fontColor('#A0A0B8')
-          .width(48)
-          .textAlign(TextAlign.Center)
-        Button('+')
-          .fontSize(16)
-          .width(34)
-          .height(30)
-          .backgroundColor('#1C1C26')
-          .fontColor('#E6E6F0')
-          .onClick(() => {
-            this.zoomBy(0.1);
-          })
-      }
-      .width('100%')
-      .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-      .backgroundColor('#0E0E12')
+
 
       if (this.statusMessage.length > 0) {
         Text(this.statusMessage)
@@ -1117,39 +1441,81 @@ struct BrowserPage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
 
-      Row({ space: 6 }) {
-        this.panelButton('书签', PANEL_BOOKMARKS)
-        this.panelButton('历史', PANEL_HISTORY)
-        this.panelButton('下载', PANEL_DOWNLOADS)
-        this.panelButton('设置', PANEL_SETTINGS)
-        Button('收藏')
-          .fontSize(12)
-          .height(32)
-          .backgroundColor('#1F2A1F')
-          .fontColor('#A8E6B0')
-          .borderRadius(8)
-          .onClick(() => {
-            this.addCurrentBookmark();
-          })
-        Button(this.privateMode ? '退出私密' : '私密模式')
-          .fontSize(12)
-          .height(32)
-          .backgroundColor(this.privateMode ? '#2A1F3A' : '#17171F')
-          .fontColor(this.privateMode ? '#C9A7FF' : '#A0A0B8')
-          .borderRadius(8)
-          .onClick(() => {
-            this.togglePrivateMode();
-          })
+      if (!this.fullscreenUi) {
+        Row({ space: 4 }) {
+          this.panelButton('书签', PANEL_BOOKMARKS)
+          this.panelButton('历史', PANEL_HISTORY)
+          this.panelButton('下载', PANEL_DOWNLOADS)
+          this.panelButton('设置', PANEL_SETTINGS)
+          Button('收藏')
+            .fontSize(11)
+            .height(26)
+            .backgroundColor('#1F2A1F')
+            .fontColor('#A8E6B0')
+            .borderRadius(6)
+            .onClick(() => {
+              this.addCurrentBookmark();
+            })
+          Button(this.privateMode ? '退出私密' : '私密')
+            .fontSize(11)
+            .height(26)
+            .backgroundColor(this.privateMode ? '#2A1F3A' : '#17171F')
+            .fontColor(this.privateMode ? '#C9A7FF' : '#A0A0B8')
+            .borderRadius(6)
+            .onClick(() => {
+              this.togglePrivateMode();
+            })
+          Blank()
+          Button(this.findVisible ? '隐藏查找' : '查找')
+            .fontSize(11)
+            .height(26)
+            .backgroundColor('#1C1C26')
+            .fontColor('#C8C8DC')
+            .borderRadius(6)
+            .onClick(() => {
+              this.findVisible = !this.findVisible;
+            })
+          Button('−')
+            .fontSize(14)
+            .width(30)
+            .height(26)
+            .padding(0)
+            .backgroundColor('#1C1C26')
+            .fontColor('#E6E6F0')
+            .borderRadius(6)
+            .onClick(() => {
+              this.zoomBy(-0.1);
+            })
+          Text(`${Math.round(this.zoomLevel * 100)}%`)
+            .fontSize(10)
+            .fontColor('#A0A0B8')
+            .width(36)
+            .textAlign(TextAlign.Center)
+          Button('+')
+            .fontSize(14)
+            .width(30)
+            .height(26)
+            .padding(0)
+            .backgroundColor('#1C1C26')
+            .fontColor('#E6E6F0')
+            .borderRadius(6)
+            .onClick(() => {
+              this.zoomBy(0.1);
+            })
+        }
+        .width('100%')
+        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+        .backgroundColor('#0E0E12')
       }
-      .width('100%')
-      .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-      .justifyContent(FlexAlign.Start)
 
       if (!this.fullscreenUi) {
       TabBar({
         tabs: this.tabs,
         activeTabId: this.activeTabId,
         privateMode: this.privateMode,
+        onMenu: () => {
+          this.openPanel(PANEL_SETTINGS);
+        },
         onSelectTab: (tabId: string) => {
           this.viewModel.activateTab(tabId);
           const engineIndex: number | undefined = this.engineIndexOfTab(tabId);
@@ -1242,6 +1608,12 @@ struct BrowserPage {
             onRetry: (id: string) => {
               this.retryDownload(id);
             },
+            onOpen: (id: string) => {
+              this.openDownload(id);
+            },
+            onClear: () => {
+              this.clearDownloads();
+            },
             onRefresh: () => {
               this.refreshPanels();
             }
@@ -1332,4 +1704,43 @@ interface PickerRequest {
 interface PickerEvent {
   id: number;
   req: string;
+}
+
+interface MenuAnchor {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface MenuItem {
+  kind: string;
+  id: number;
+  label: string;
+  accel: string;
+  icon?: string;
+  disabled: boolean;
+  checked: boolean;
+  hidden: boolean;
+  items?: Array<MenuItem>;
+}
+
+interface MenuPayload {
+  menuId: number;
+  title?: string;
+  anchor?: MenuAnchor;
+  point?: boolean;
+  items: Array<MenuItem>;
+}
+
+class MenuRow {
+  kind: string = 'item';
+  hasChildren: boolean = false;
+  expanded: boolean = false;
+  id: number = 0;
+  label: string = '';
+  accel: string = '';
+  disabled: boolean = false;
+  checked: boolean = false;
+  depth: number = 0;
 }

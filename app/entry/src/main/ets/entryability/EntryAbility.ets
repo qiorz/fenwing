@@ -3,6 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { GeckoViewBoot, GeckoViewHandlers } from 'gecko';
+import { GeckoEngine } from 'gecko';
 import { SessionStore } from '../service/SessionStore';
 
 const DOMAIN = 0x0000;
@@ -14,10 +15,11 @@ const DOMAIN = 0x0000;
 const BENCH_PAGE_HTML: string = '<html><head><title>bench</title></head><body><script>function ms(f){var t=performance.now();f();return Math.round(performance.now()-t);}function fib(n){return n<2?n:fib(n-1)+fib(n-2);}function run(){var r=[];for(var k=0;k<3;k++){var a=ms(function(){fib(27);});var b=ms(function(){var o={x:0};for(var i=0;i<5000000;i++){o.x+=i;}});var c=ms(function(){var a=[];for(var i=0;i<1000000;i++){a.push(i);}a.map(function(v){return v*2;}).reduce(function(p,q){return p+q;},0);});var d=ms(function(){var s="";for(var i=0;i<50000;i++){s+="ab";}s.split("").join("");});r.push("fib="+a+",obj="+b+",arr="+c+",str="+d);}document.title="BENCH "+r.join(" | ");}setTimeout(run,800);</script></body></html>';
 
 
-const DEMO_PAGE_HTML: string = '<html><head><title>P1 demo</title></head><body style="font-size:26px;padding:36px"><p><input type="file" id="f" style="font-size:26px;width:620px"></p><p><button onclick="dl()" style="font-size:26px;padding:16px">下载测试</button></p><p><button onclick="fs()" style="font-size:26px;padding:16px">全屏测试</button></p><script>function dl(){var b=new Blob(["hello-download"],{type:"text/plain"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="hello.txt";document.body.appendChild(a);a.click();}function fs(){document.documentElement.requestFullscreen();}</script></body></html>';
+const DEMO_PAGE_HTML: string = '<html><head><title>P1 demo</title></head><body style="font-size:26px;padding:36px"><p><a href="https://example.com/">示例链接</a></p><p><img id="img" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMjQwIj48cmVjdCB3aWR0aD0iMjQwIiBoZWlnaHQ9IjI0MCIgZmlsbD0iIzRDNkZGRiIvPjxjaXJjbGUgY3g9IjEyMCIgY3k9IjEyMCIgcj0iNjAiIGZpbGw9IiNGRkQxNjYiLz48dGV4dCB4PSIxMjAiIHk9IjEzMCIgZm9udC1zaXplPSIyOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzEyMTIxQSI+SU1HPC90ZXh0Pjwvc3ZnPg==" width="240" height="240"></p><p><input type="file" id="f" style="font-size:26px;width:620px"></p><p><select id="s" style="font-size:26px;padding:10px"><option>AAA</option><option>BBB</option><option>CCC</option></select></p><p><button onclick="dl()" style="font-size:26px;padding:16px">下载测试</button></p><p><button onclick="fs()" style="font-size:26px;padding:16px">全屏测试</button></p><script>function dl(){var b=new Blob(["hello-download"],{type:"text/plain"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="hello.txt";document.body.appendChild(a);a.click();}function fs(){document.documentElement.requestFullscreen();}</script></body></html>';
 
 export default class EntryAbility extends UIAbility {
   private titleSeq: number = 0;
+  private menuSeq: number = 0;
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
@@ -32,17 +34,20 @@ export default class EntryAbility extends UIAbility {
     const unclean: boolean = store.beginEngineRun();
     AppStorage.setOrCreate('engineUnclean', unclean);
     AppStorage.setOrCreate('skipResume', this.paramIsOne(want, 'noresume'));
+    AppStorage.setOrCreate('debugCtxMenu', this.paramIsOne(want, 'ctxmenu'));
+    AppStorage.setOrCreate('menuAuto', this.paramIsOne(want, 'menuauto'));
+    AppStorage.setOrCreate('diagMode', this.paramIsOne(want, 'diag'));
     hilog.info(DOMAIN, 'GeckoBoot', 'previous run unclean=%{public}s', `${unclean}`);
     hilog.info(DOMAIN, 'GeckoBoot', 'launch params perf=%{public}s nojit=%{public}s',
       `${perf}`, `${nojit}`);
-    this.bootGecko(perf, nojit, this.stringParam(want, 'url'), this.paramIsOne(want, 'demo'));
+    this.bootGecko(perf, nojit, this.stringParam(want, 'url'), this.paramIsOne(want, 'demo'), this.paramIsOne(want, 'menutest'));
   }
 
   /**
    * M2 headless bring-up: copy the GRE archive (omni.ja) out of the gecko HSP
    * rawfile into the app sandbox, then start XRE_main through libgeckoview.so.
    */
-  private bootGecko(perf: boolean, nojit: boolean, overrideUrl: string, demo: boolean): void {
+  private bootGecko(perf: boolean, nojit: boolean, overrideUrl: string, demo: boolean, menuTest: boolean): void {
     try {
       const moduleContext = this.context.createModuleContext('gecko');
       const bytes = moduleContext.resourceManager.getRawFileContentSync('omni.ja');
@@ -71,6 +76,11 @@ export default class EntryAbility extends UIAbility {
         onIme: (state: string) => {
           AppStorage.setOrCreate('geckoImeState', state);
         },
+        onMenu: (json: string) => {
+          this.menuSeq += 1;
+          AppStorage.setOrCreate('geckoMenu', json);
+          AppStorage.setOrCreate('geckoMenuSeq', this.menuSeq);
+        },
         onDownload: (json: string) => {
           AppStorage.setOrCreate('geckoDownload', json);
         },
@@ -81,7 +91,7 @@ export default class EntryAbility extends UIAbility {
           AppStorage.setOrCreate('geckoFullscreen', fullscreen);
         },
         onTitle: (title: string, url: string, session: string) => {
-          if (title.length > 0) {
+          if (title.length > 0 || session === '__opentab__') {
             // Sequence makes every event distinct even for equal titles.
             this.titleSeq += 1;
             AppStorage.setOrCreate('geckoTitleEvent', JSON.stringify({
@@ -94,6 +104,21 @@ export default class EntryAbility extends UIAbility {
         }
       };
       GeckoViewBoot.registerAll(handlers);
+      if (menuTest) {
+        const sample: string = '{"menuId":9001,"title":"","anchor":{"x":260,"y":180,"w":0,"h":0},"items":[' +
+          '{"kind":"item","id":1,"label":"刷新页面","accel":"Ctrl+R","disabled":false,"checked":false,"hidden":false,"items":[]},' +
+          '{"kind":"item","id":2,"label":"复制链接","accel":"Ctrl+C","disabled":false,"checked":false,"hidden":false,"items":[]},' +
+          '{"kind":"separator","id":0,"label":"","accel":"","disabled":false,"checked":false,"hidden":false,"items":[]},' +
+          '{"kind":"checkbox","id":3,"label":"显示工具栏","accel":"","disabled":false,"checked":true,"hidden":false,"items":[]},' +
+          '{"kind":"item","id":4,"label":"禁用项示例","accel":"","disabled":true,"checked":false,"hidden":false,"items":[]}' +
+          ']}';
+        setTimeout(() => {
+          this.menuSeq += 1;
+          AppStorage.setOrCreate('geckoMenu', sample);
+          AppStorage.setOrCreate('geckoMenuSeq', this.menuSeq);
+          hilog.info(DOMAIN, 'GeckoBoot', 'menu test payload injected');
+        }, 2500);
+      }
       // Port patch (nsAppRunner.cpp OHOS branch) appends "/omni.ja" to the
       // -greomni path, so we must pass the DIRECTORY, not the file.
       // Engine startup page. Tab 0 of the ArkTS tab strip is bound to this
@@ -152,6 +177,27 @@ export default class EntryAbility extends UIAbility {
         startUrl = 'file://' + benchPath;
       }
       const engineArgs: string = nojit ? '--airweb-force-no-jit' : '';
+      if (AppStorage.get<boolean>('diagMode') === true) {
+        setTimeout(() => {
+          const files: string[] = ['gecko_xre_diag.txt', 'gecko_debug.txt'];
+          for (let fi = 0; fi < files.length; fi++) {
+            const tail: string = GeckoEngine.readLogTail(`${this.context.filesDir}/${files[fi]}`, 20000);
+            for (let i = 0; i < tail.length; i += 1000) {
+              hilog.info(DOMAIN, 'Diag', '%{public}s', tail.substring(i, i + 1000));
+            }
+          }
+        }, 9000);
+      }
+      // Enable the port's native-menu overlay path once XPCOM/prefs are ready.
+      setTimeout(() => {
+        try {
+          GeckoViewBoot.setBoolPref('ohos.menu.native_overlay', true);
+          GeckoViewBoot.setBoolPref('ohos.menu.autotest', AppStorage.get<boolean>('menuAuto') === true);
+          hilog.info(DOMAIN, 'GeckoBoot', 'native menu pref enabled');
+        } catch (menuPrefError) {
+          hilog.warn(DOMAIN, 'GeckoBoot', 'native menu pref failed');
+        }
+      }, 3000);
       hilog.info(DOMAIN, 'GeckoBoot', 'engine start url=%{public}s args=%{public}s', startUrl, engineArgs);
       GeckoViewBoot.init(startUrl, dir, engineArgs);
     } catch (error) {

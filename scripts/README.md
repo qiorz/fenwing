@@ -1,46 +1,43 @@
-# scripts/
+# 构建 / 验证脚本索引（P3 工程化）
 
-这些是移植过程中真正用过的脚本，不是「整理过的示例」。它们对路径有强假设：
-Windows 侧 `D:\ff-ohos\...`，WSL 侧 `/home/dev/ff/gecko`、`/opt/ohos-sdk/native`。
-复现时请先按自己的目录改路径（或直接用 [engine/apply-port.sh](../engine/apply-port.sh) +
-[engine/README.md](../engine/README.md) 里的流程）。
+> 约定：**当前源码即权威状态**，`archive/` 中的一次性 patch 脚本仅作历史记录，勿再重放。
 
-## 目录
+## 日常流水线
 
-| 目录 | 内容 |
-|---|---|
-| `build/` | 主线：内核/JS 编译、产物铺放、JIT 开关、签名、权限段检查 |
-| `setup/` | 一次性环境：WSL 安装、SDK 导入、工具链自检 |
-| `bench/` | 性能基准的注入与采集（JIT vs 解释器） |
-| `probes/` | 113 个历史探针：`inspect-*`、`patch-*`、`try*`、`show-*`，用于当时定位问题，仅作记录 |
+```powershell
+# 1. 构建（HSP + HAP），失败时打印 ArkTS 错误
+powershell -File D:\ff-ohos\scripts\build-all.ps1
 
-## 最常用的几个
+# 2. 校验快照（体积预算、.permission、omni 内容、ACL、CRLF）
+powershell -File D:\ff-ohos\scripts\verify-snapshot.ps1
 
-| 脚本 | 作用 |
-|---|---|
-| `build/build-gecko-full.sh` | WSL 内全量 `./mach build -j8`，日志落 `/home/dev/ff/gecko-build.log` |
-| `build/build-mozjs.sh` | 单独编 SpiderMonkey（`--disable-jit --enable-shared-js`） |
-| `build/build-omni.sh` | 从 `dist/bin` 打 `omni.ja`（`zip -0`，5385 个文件） |
-| `build/stage-engine.sh` | 把 `libxul`/`libgeckoview`/NSS 依赖/NDK stub 库铺进 HSP 的 `libs/` |
-| `build/enable-jit-libs.sh` | 给 `libxul.so` 注入 `.permission` 段，替换为 JIT 版 |
-| `build/patch-jit-on.py` / `patch-jit-off.py` | 运行时开关 JIT（改启动参数与探测逻辑） |
-| `build/check-permission-section.sh` | 检查 `.permission` 段是否在 |
-| `build/sign-firefoxport.ps1` | 用 AGC 离线材料签 HAP/HSP（`hap-sign-tool.jar`） |
-| `build/mozconfig` | 交叉编译配置（API 26 / `aarch64-unknown-linux-ohos`） |
-| `bench/ab-param-bench.py` | 参数化基准页注入与结果采集 |
-| `setup/02-wsl-bootstrap.sh` | WSL 内装依赖、Rust、mozbuild |
+# 3. 安装到设备（改过 HSP 时加 -Reinstall 卸载重装）
+powershell -File D:\ff-ohos\scripts\install-device.ps1 -Reinstall
 
-## 服务端路径是怎么来的
+# 4. 冒烟测试（首帧 / 页面加载 / 右键菜单 / 进程存活）
+powershell -File D:\ff-ohos\scripts\smoke-test.ps1
 
-```
-Windows:  D:\ff-ohos\work\firefoxport     ← DevEco 工程
-          D:\ff-ohos\artifacts             ← 可复用的 strip 产物
-          D:\ff-ohos\scripts               ← 这些脚本
-WSL:      /home/dev/ff/gecko               ← Gecko 源码 + objdir
-          /opt/ohos-sdk/native             ← OpenHarmony native SDK
+# 5. 长稳压测（可选，N 轮启停+标签+导航+关标签）
+powershell -File D:\ff-ohos\scripts\soak-test.ps1 -Cycles 8
 ```
 
-## 编码
+## 权威脚本
 
-仓库内脚本已统一为 UTF-8（无 BOM）。`probes/` 里的脚本保留原样，仅做编码归一，
-不保证在别人的机器上能直接跑——它们是取证记录，不是 API。
+| 脚本 | 用途 |
+|---|---|
+| `build-all.ps1` | 一键构建 HSP+HAP，输出体积与错误 |
+| `verify-snapshot.ps1` | 静态快照校验（PASS/FAIL） |
+| `install-device.ps1` | 推送+安装（`-Reinstall` 处理 HSP 变更） |
+| `smoke-test.ps1` | 设备冒烟（PASS/FAIL） |
+| `soak-test.ps1` | 长稳压测 + RSS 采样 + 崩溃取证 |
+| `build-omni.sh` | 由 dist 重建 omni（默认 STORED） |
+| `build-gecko-full.sh` / `build-mozjs.sh` / `stage-engine.sh` | 引擎/依赖构建与暂存 |
+| `enable-jit-libs.sh` | 注入 `.permission`、切换 JIT 库 |
+
+## 归档
+
+`archive/`：历史的一次性 patch（p0/p1/p15/p2x）、诊断与解析脚本。源码已包含其最终效果，重放可能造成回退。
+
+## CI（本地）
+
+`ci/run-local.ps1`：build → verify → smoke，一条命令跑完；退出码非 0 即失败。

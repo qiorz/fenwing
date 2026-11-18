@@ -1,46 +1,56 @@
-Firefox for HarmonyOS — NOTICE
-==============================
+AirWeb — NOTICE
+===============
 
 本仓库（不含 Releases 中的二进制附件）以 Mozilla Public License 2.0 发布，
-全文见 LICENSE。
+全文见 LICENSE 与 docs/LICENSE-MPL-2.0.txt。
+
+AirWeb 曾用名 "Firefox for HarmonyOS"，2026-11-18 按 Mozilla 商标政策更名。
+本项目与 Mozilla 无隶属、赞助或背书关系。
 
 一、本仓库原创部分
 ------------------
   app/             ArkTS 浏览器外壳（EntryAbility、BrowserPage、GeckoSurface、
-                   SessionStore、TabViewModel、各视图）与 NAPI 桥 cpp/
-  scripts/         构建、基准、调试脚本
-  docs/            中文技术文档
-  engine/          针对 Gecko 的移植补丁与构建配置
+                   SessionStore、TabViewModel、菜单浮层、下载管理等）与 NAPI 桥 cpp/
+  scripts/         P3 流水线：构建、快照校验、安装、冒烟、长稳、本地 CI
+  docs/            技术文档（P0–P4、性能、合规、两轮项目审视）
+  engine/          针对 Gecko 的移植补丁、mozconfig 与复现说明
+  evidence/        真机截图
 
 二、第三方与上游
 ----------------
 1. Gecko / SpiderMonkey / NSS / NSPR
    Mozilla Foundation — Mozilla Public License 2.0
-   基线 mozilla-central 5836a062726f715fda621338a17b51aff30d0a8c
+   基线 mozilla-central 5836a062726f715fda621338a17b51aff30d0a8c（Gecko 142.0a1）
    Gecko 内含的第三方组件（FFmpeg/ffvpx、libvpx、libjpeg-turbo、zlib、HarfBuzz、
    ICU、SQLite 等）各自遵循其原许可，完整清单见 Gecko 源码
-   toolkit/content/license.html。
+   toolkit/content/license.html，以及 docs/THIRD-PARTY-NOTICES.md。
 
-2. ohos_gecko-opensource
+2. FFmpeg / libvpx
+   FFmpeg — LGPL-2.1-or-later；libvpx — BSD-3-Clause
+   以动态库形式链接（libmozavcodec.so、libmozavutil.so、liblgpllibs.so），未修改源码。
+   对应源码：https://ffmpeg.org / https://chromium.googlesource.com/webm/libvpx
+
+3. ohos_gecko-opensource
    OpenHarmonyPCDeveloper — Mozilla Public License 2.0
    https://gitcode.com/OpenHarmonyPCDeveloper/ohos_gecko-opensource
    本工程的 OHOS 平台适配层以其为蓝本，见 engine/PROVENANCE.md。
 
-3. OpenHarmony SDK / NDK
+4. OpenHarmony SDK / NDK
    OpenHarmony Project — Apache License 2.0
    仅作为构建工具链使用，未再分发。
 
-4. Hypium / Hamock
+5. Hypium / Hamock
    OpenHarmony Project — Apache License 2.0
    工程 devDependencies，仅测试期使用。
 
 三、商标
 --------
-"Firefox"、"Gecko"、"Mozilla" 是 Mozilla Foundation 的商标。本项目与 Mozilla
-无隶属、赞助或背书关系，不随附 Mozilla 的品牌图标、名称或官方发行物。
+"Firefox"、"Gecko"、"Mozilla" 是 Mozilla Foundation 的商标。AirWeb 不使用 Firefox
+名称、Logo 或图标，也不暗示 Mozilla 官方背书；"基于 Gecko 142" 仅为技术事实描述。
 应用图标为本工程自绘占位图。
 
-四、二进制附件
---------------
-Releases 中的 firefox-ohos-engine-1.0.0.zip 由本仓库补丁 + 上述上游构建而成，
-按 MPL-2.0 分发；对应源码的获取方式见 engine/PROVENANCE.md 第 4 节。
+四、二进制附件与源码获取
+------------------------
+Releases 中的 airweb-engine-1.1.0.zip 由本仓库补丁 + 上述上游构建而成，按 MPL-2.0
+分发。对应源码获取方式见 docs/SOURCE-OFFER.md 与 engine/PROVENANCE.md 第 4 节；
+Gecko 基线修订公开可得，移植改动即本仓库 engine/patches/。

@@ -1,6 +1,6 @@
 # engine/ — Gecko 侧：基线、补丁、复现
 
-这个目录只回答一个问题：**「那 185 MB 的 `libxul.so` 是怎么编出来的？」**
+这个目录只回答一个问题：**「那 185 MB 的 `libxul.so` 和 20 MB 的 `omni.ja` 是怎么来的？」**
 
 ## 基线
 
@@ -28,11 +28,12 @@ patches/firefox-ohos-gecko-5836a06272.patch.gz   1.1 MB   （同一份，gzip）
 - `gfx/` WebRender / EGL 合成改造、`layout/` 移动视口与 paint holding、
   `browser/` chrome ArkTS 化（`ohos-chrome-bridge.js`、`phone-chrome`）、
   `xpcom/` 线程与 `Omnijar` 适配、`build/moz.configure` 的 OHOS target 识别
-- 本工程的 P0/P1 修补（标题同步、watchdog、JIT 探测、会话恢复相关）
+- 本工程的 P0–P2 修补：JIT 探测与降级、标题/URL 同步契约、`omni.ja` 目录形式传参、
+  `geckoview.js` 的内容区菜单构造（新标签打开、保存图片、复制地址等菜单项）
 
 ### 为什么是整树补丁而不是提交序列
 
-本地那棵 23 GB 的 Gecko 树是 **浅克隆 + 未提交工作区**（1 个 commit，1128 个未提交改动），
+本地那棵 23 GB 的 Gecko 树是 **浅克隆 + 未提交工作区**（1 个 commit，约 1000 个未提交改动），
 没有可移植的提交历史。社区移植仓库 `ohos_gecko` 虽然提供了按子系统拆分的补丁，
 但其补丁是 CRLF 行尾、且与 `5836a062` 的上下文已经漂移，无法在纯净检出上直接 `git apply`。
 
@@ -47,7 +48,8 @@ APPLY_OK
 compared=1128 mismatches=0
 ```
 
-即补丁能 100% 复现出产出 `libxul.so` 的那棵树。
+v1.0 与 v1.1 两次发布前都跑过同样的验证（v1.1 的差异是 `geckoview.js` 菜单与
+`omni.ja` 的打包方式，见下）。
 
 ## 应用
 
@@ -57,7 +59,7 @@ cd gecko
 git fetch --depth 1 origin 5836a062726f715fda621338a17b51aff30d0a8c
 git checkout 5836a062726f715fda621338a17b51aff30d0a8c
 
-git apply -p1 ../firefox-ohos/engine/patches/firefox-ohos-gecko-5836a06272.patch
+git apply -p1 ../engine/patches/firefox-ohos-gecko-5836a06272.patch
 ```
 
 或直接跑 [`apply-port.sh`](apply-port.sh)。
@@ -66,7 +68,7 @@ git apply -p1 ../firefox-ohos/engine/patches/firefox-ohos-gecko-5836a06272.patch
 
 ```bash
 # 依赖：OHOS native SDK（/opt/ohos-sdk/native）、Rust、clang、python3、autoconf 等
-cp ../firefox-ohos/engine/mozconfig ./mozconfig
+cp ../engine/mozconfig ./mozconfig
 export OHOS_SDK_NATIVE=/opt/ohos-sdk/native
 ./mach build -j$(nproc)
 ```
@@ -79,7 +81,18 @@ libgeckoview.so      620 KB
 libnspr4/libnss3/libgkcodecs/libmozjs…   14 个运行时依赖
 ```
 
-把 `libxul.so` strip 到 185 MB，并（JIT 路线）注入 `.permission` 段：
+### 瘦身（P2-3）
+
+```bash
+# 1) strip 所有运行库（302 MB -> 213 MB）
+bash ../scripts/p23-strip.sh
+
+# 2) omni.ja 用 deflate 重打（65.5 MB -> 20.4 MB），Omnijar 支持 deflate
+#    注意：build-omni.sh 默认仍是 STORED，重打时用 zip -6
+bash ../scripts/build-omni.sh --deflate      # 或手工：zip -6 -r omni.ja .
+```
+
+### JIT（可选）
 
 ```bash
 llvm-strip --strip-unneeded libxul.so -o libxul-stripped.so
@@ -87,11 +100,11 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
              --set-section-flags .permission=readonly libxul-stripped.so libxul-jit.so
 ```
 
-再执行仓库里的 `scripts/build/stage-engine.sh` 把库和 `omni.ja` 铺回 `app/`。
+再执行 [`../scripts/stage-engine.sh`](../scripts/stage-engine.sh) 把库和 `omni.ja` 铺回
+`app/gecko/libs/arm64-v8a/` 与 `rawfile/`，最后用 `scripts/build-all.ps1` 出包。
 
-> ⚠️ `omni.ja` 不是普通 zip：它是 `zip -0` 打包后用 mozjar 工具生成的 GRE 资源包，
-> 由 `scripts/build/build-omni.sh` 从 `dist/bin` 产出，运行时复制到应用沙箱再以目录形式传给
-> `-greomni`。
+> ⚠️ `omni.ja` 不是普通 zip：它是 mozjar 生成的 GRE 资源包，必须整体放进 `rawfile/`，
+> 运行时复制到沙箱再以目录形式传给 `-greomni`。**别解压、别反编译后重打**。
 
 ## 来源与归属
 

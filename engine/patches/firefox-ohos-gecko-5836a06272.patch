@@ -85191,10 +85191,10 @@ index 0000000000..bc0e023436
 +
 +JAR_MANIFESTS += ["jar.mn"]
 diff --git a/mobile/shared/chrome/geckoview/geckoview.js b/mobile/shared/chrome/geckoview/geckoview.js
-index 6ec21489e9..cc84f52df3 100644
+index 6ec21489e9..0b95697594 100644
 --- a/mobile/shared/chrome/geckoview/geckoview.js
 +++ b/mobile/shared/chrome/geckoview/geckoview.js
-@@ -40,6 +40,212 @@ XPCOMUtils.defineLazyScriptGetter(
+@@ -40,6 +40,220 @@ XPCOMUtils.defineLazyScriptGetter(
  // by the child scripts.
  /* global debug, warn */
  
@@ -85278,6 +85278,14 @@ index 6ec21489e9..cc84f52df3 100644
 +    }
 +
 +    const browser = createBrowser();
++    browser.addEventListener("contextmenu", function (ev) {
++      try {
++        ev.preventDefault();
++        ohosOpenContextMenu(browser, ev.screenX, ev.screenY, ev);
++      } catch (e) {
++        dump(`[OHOS_CTX] listener failed: ${e}\n`);
++      }
++    }, true);
 +    const isFirst = !this._firstBrowserCreated;
 +    // ohos: 所有标签的 <browser> 绝对定位重叠在窗口上(否则多标签纵向堆叠),
 +    // 可见性由下面 style.display 控制。
@@ -85407,7 +85415,7 @@ index 6ec21489e9..cc84f52df3 100644
  /**
   * ModuleManager creates and manages GeckoView modules. Each GeckoView module
   * normally consists of a JSM module file with an optional content module file.
-@@ -51,7 +257,47 @@ XPCOMUtils.defineLazyScriptGetter(
+@@ -51,7 +265,47 @@ XPCOMUtils.defineLazyScriptGetter(
   */
  var ModuleManager = {
    get _initData() {
@@ -85456,7 +85464,7 @@ index 6ec21489e9..cc84f52df3 100644
    },
  
    init(aBrowser, aModules) {
-@@ -64,14 +310,12 @@ var ModuleManager = {
+@@ -64,14 +318,12 @@ var ModuleManager = {
      this._modules = new Map(
        (function* () {
          for (const module of aModules) {
@@ -85477,7 +85485,7 @@ index 6ec21489e9..cc84f52df3 100644
          }
        })()
      );
-@@ -83,9 +327,10 @@ var ModuleManager = {
+@@ -83,9 +335,10 @@ var ModuleManager = {
      // visible. To avoid flickering when changing tabs, we preserve layers for
      // all loaded tabs.
      aBrowser.preserveLayers(true);
@@ -85491,7 +85499,7 @@ index 6ec21489e9..cc84f52df3 100644
  
      WindowEventDispatcher.registerListener(this, [
        "GeckoView:UpdateModuleState",
-@@ -107,14 +352,24 @@ var ModuleManager = {
+@@ -107,14 +360,24 @@ var ModuleManager = {
        }
      });
  
@@ -85523,7 +85531,7 @@ index 6ec21489e9..cc84f52df3 100644
    },
  
    onPrintWindow(aParams) {
-@@ -521,7 +776,9 @@ class ModuleInfo {
+@@ -521,7 +784,9 @@ class ModuleInfo {
  }
  
  function createBrowser() {
@@ -85534,7 +85542,7 @@ index 6ec21489e9..cc84f52df3 100644
    // Identify this `<browser>` element uniquely to Marionette, devtools, etc.
    // Use the JSM global to create the permanentKey, so that if the
    // permanentKey is held by something after this window closes, it
-@@ -532,9 +789,22 @@ function createBrowser() {
+@@ -532,9 +797,22 @@ function createBrowser() {
    browser.setAttribute("type", "content");
    browser.setAttribute("primary", "true");
    browser.setAttribute("flex", "1");
@@ -85560,7 +85568,7 @@ index 6ec21489e9..cc84f52df3 100644
    browser.setAttribute("messagemanagergroup", "browsers");
    browser.setAttribute("manualactiveness", "true");
  
-@@ -550,11 +820,48 @@ function InitLater(fn, object, name) {
+@@ -550,11 +828,221 @@ function InitLater(fn, object, name) {
    return DelayedInit.schedule(fn, object, name, 15000 /* 15s max wait */);
  }
  
@@ -85601,6 +85609,179 @@ index 6ec21489e9..cc84f52df3 100644
 +  }
 +}
 +
++// ohos: 最小内容区右键/长按菜单(交给 OHOSMenuBridge → ArkTS 浮层)
++// 触发条件: popup id = contentAreaContextMenu + openPopupAtScreen(...,isContextMenu=true)
++// + pref ohos.menu.native_overlay=true
++function ohosClipboardWrite(aText) {
++  try {
++    if (navigator.clipboard && navigator.clipboard.writeText) {
++      navigator.clipboard.writeText(aText);
++      return true;
++    }
++  } catch (e) {}
++  try {
++    const helper = Cc["@mozilla.org/widget/clipboardhelper;1"]
++      .getService(Ci.nsIClipboardHelper);
++    helper.copyString(aText);
++    return true;
++  } catch (e) {}
++  return false;
++}
++
++function ohosBuildContextItems(aBrowser, aEvent) {
++  const items = [];
++  let doc = null;
++  let win = null;
++  try {
++    doc = aBrowser.contentDocument;
++    win = aBrowser.contentWindow;
++  } catch (e) {}
++
++  let target = null;
++  try {
++    target = doc.elementFromPoint(aEvent.clientX, aEvent.clientY);
++  } catch (e) {}
++
++  if (target && target.closest) {
++    const link = target.closest("a[href]");
++    if (link) {
++      items.push({
++        label: "在新标签页打开链接",
++        accel: "",
++        run: () => {
++          try {
++            Services.obs.notifyObservers(null, "airweb-tab-state",
++              JSON.stringify({ session: "__opentab__", title: "", url: link.href }));
++          } catch (e) {}
++        },
++      });
++      items.push({
++        label: "复制链接地址",
++        accel: "",
++        run: () => ohosClipboardWrite(link.href),
++      });
++    }
++    const img = target.closest("img");
++    if (img && img.src) {
++      items.push({
++        label: "保存图片",
++        accel: "",
++        run: () => {
++          try {
++            let name = "image";
++            try {
++              if (img.src.startsWith("data:")) {
++                const mime = img.src.substring(5, img.src.indexOf(";") > 0 ? img.src.indexOf(";") : img.src.indexOf(","));
++                const ext = mime.indexOf("svg") >= 0 ? "svg" : (mime.indexOf("png") >= 0 ? "png" : (mime.indexOf("jpeg") >= 0 || mime.indexOf("jpg") >= 0 ? "jpg" : "bin"));
++                name = "image." + ext;
++              } else {
++                name = (img.src.split("/").pop() || "image");
++              }
++            } catch (e) {}
++            const a = doc.createElement("a");
++            a.href = img.src;
++            a.download = name;
++            doc.body.appendChild(a);
++            a.click();
++            a.remove();
++          } catch (e) {}
++        },
++      });
++      items.push({
++        label: "复制图片地址",
++        accel: "",
++        run: () => ohosClipboardWrite(img.src),
++      });
++    }
++  }
++
++  let selection = "";
++  try {
++    selection = win ? String(win.getSelection()) : "";
++  } catch (e) {}
++  if (selection.length > 0) {
++    items.push({
++      label: "复制选中文本",
++      accel: "Ctrl+C",
++      run: () => ohosClipboardWrite(selection),
++    });
++  }
++
++  items.push({ label: "刷新页面", accel: "Ctrl+R", run: () => { try { aBrowser.reload(); } catch (e) {} } });
++  items.push({ label: "后退", accel: "Alt+Left", run: () => { try { aBrowser.browsingContext.goBack(); } catch (e) {} } });
++  items.push({ label: "前进", accel: "Alt+Right", run: () => { try { aBrowser.browsingContext.goForward(); } catch (e) {} } });
++
++  items.push({
++    label: "更多",
++    accel: "",
++    children: [
++      {
++        label: "复制页面地址",
++        accel: "",
++        run: () => {
++          try {
++            ohosClipboardWrite(aBrowser.currentURI.spec);
++          } catch (e) {}
++        },
++      },
++      {
++        label: "复制页面标题",
++        accel: "",
++        run: () => ohosClipboardWrite(aBrowser.contentTitle || ""),
++      },
++    ],
++  });
++
++  return items;
++}
++
++function ohosFillMenu(aParent, aItems) {
++  aItems.forEach((it) => {
++    if (it.children && it.children.length > 0) {
++      const menu = document.createXULElement("menu");
++      menu.setAttribute("label", it.label);
++      const sub = document.createXULElement("menupopup");
++      ohosFillMenu(sub, it.children);
++      menu.appendChild(sub);
++      aParent.appendChild(menu);
++    } else {
++      const mi = document.createXULElement("menuitem");
++      mi.setAttribute("label", it.label);
++      if (it.accel) {
++        mi.setAttribute("acceltext", it.accel);
++      }
++      mi.addEventListener("command", () => {
++        try {
++          if (it.run) {
++            it.run();
++          }
++        } catch (e) {}
++      });
++      aParent.appendChild(mi);
++    }
++  });
++}
++
++function ohosOpenContextMenu(aBrowser, aX, aY, aEvent) {
++  try {
++    let popup = document.getElementById("ohos-content-context-menu");
++    if (!popup) {
++      popup = document.createXULElement("menupopup");
++      popup.id = "contentAreaContextMenu";
++      popup.setAttribute("type", "content");
++      document.documentElement.appendChild(popup);
++    }
++    while (popup.firstChild) {
++      popup.removeChild(popup.firstChild);
++    }
++    ohosFillMenu(popup, ohosBuildContextItems(aBrowser, aEvent));
++    popup.openPopupAtScreen(aX, aY, true);
++    dump(`[OHOS_CTX] open at ${aX},${aY}\n`);
++  } catch (e) {
++    dump(`[OHOS_CTX] failed: ${e}\n`);
++  }
++}
++
  function startup() {
    GeckoViewUtils.initLogging("XUL", window);
  
@@ -85611,7 +85792,7 @@ index 6ec21489e9..cc84f52df3 100644
      {
        name: "GeckoViewContent",
        onInit: {
-@@ -856,28 +1163,78 @@ function startup() {
+@@ -856,28 +1344,78 @@ function startup() {
          resource: "resource://gre/modules/GeckoViewTranslations.sys.mjs",
        },
      },
@@ -85643,7 +85824,7 @@ index 6ec21489e9..cc84f52df3 100644
 +  if (!browser) {
 +    dump("[OHOS_TAB] 首标签创建失败!\n");
 +  }
-+
+ 
 +  // v88: window.browser / window.moduleManager 改为 getter,返回当前选中标签的对象
 +  // 保持 GeckoViewTab.sys.mjs 等 8+ 处 window.browser 引用透明跟随选中标签
 +  Object.defineProperty(window, "browser", {
@@ -85658,7 +85839,7 @@ index 6ec21489e9..cc84f52df3 100644
 +      return TabManager.getSelectedModuleManager();
 +    },
 +  });
- 
++
 +  // remoteness 切换钩子:绑定到当前 browser(标签切换时由各自 moduleManager 处理)
    if (!Services.appinfo.sessionHistoryInParent) {
      browser.prepareToChangeRemoteness = () =>
@@ -85702,7 +85883,7 @@ index 6ec21489e9..cc84f52df3 100644
    };
  
    Services.tm.dispatchToMainThread(() => {
-@@ -945,10 +1302,30 @@ function startup() {
+@@ -945,10 +1483,43 @@ function startup() {
      );
    });
  
@@ -85731,6 +85912,19 @@ index 6ec21489e9..cc84f52df3 100644
 +  window.addEventListener("DOMTitleChanged", function () { ohosNotifyActiveTitle(); }, true);
 +  setTimeout(ohosNotifyActiveTitle, 1200);
 +  setTimeout(ohosNotifyActiveTitle, 3000);
++  setTimeout(function () {
++    try {
++      if (Services.prefs.getBoolPref("ohos.menu.autotest", false)) {
++        const b = TabManager.getBrowserBySessionId(TabManager._selectedSessionId);
++        if (b) {
++          ohosOpenContextMenu(b, 420, 300, { clientX: 40, clientY: 40 });
++          dump("[OHOS_CTX] autotest popup opened\n");
++        }
++      }
++    } catch (e) {
++      dump(`[OHOS_CTX] autotest failed: ${e}\n`);
++    }
++  }, 6000);
    InitializationTracker.onInitialized(performance.now());
  }
  

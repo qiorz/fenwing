@@ -19,6 +19,8 @@ export struct TabBar {
   };
   onNewTab: () => void = () => {
   };
+  onMenu: () => void = () => {
+  };
 
   private titleOf(chip: TabChip): string {
     if (chip.title.length > 0) {
@@ -40,7 +42,7 @@ export struct TabBar {
                 .fontSize(9)
                 .fontColor(chip.privateMode ? '#C9A7FF' : '#6E6E85')
               Text(this.titleOf(chip))
-                .fontSize(12)
+                .fontSize(11)
                 .fontColor(chip.id === this.activeTabId ? '#F2F2FA' : '#A0A0B8')
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -53,8 +55,8 @@ export struct TabBar {
                   this.onCloseTab(chip.id);
                 })
             }
-            .width(168)
-            .padding({ left: 10, right: 8, top: 7, bottom: 7 })
+            .width(150)
+            .padding({ left: 8, right: 6, top: 4, bottom: 4 })
             .backgroundColor(chip.id === this.activeTabId ? '#242433' : '#17171F')
             .borderRadius(8)
             .onClick(() => {
@@ -66,21 +68,33 @@ export struct TabBar {
       .listDirection(Axis.Horizontal)
       .scrollBar(BarState.Off)
       .layoutWeight(1)
-      .height(40)
+      .height(32)
 
       Button('+')
-        .fontSize(18)
-        .width(36)
-        .height(36)
+        .fontSize(16)
+        .width(32)
+        .height(30)
+        .padding(0)
         .fontColor('#E6E6F0')
         .backgroundColor('#1C1C26')
         .borderRadius(8)
         .onClick(() => {
           this.onNewTab();
         })
+      Button('☰')
+        .fontSize(16)
+        .width(32)
+        .height(30)
+        .padding(0)
+        .fontColor('#E6E6F0')
+        .backgroundColor('#1C1C26')
+        .borderRadius(6)
+        .onClick(() => {
+          this.onMenu();
+        })
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 6, bottom: 8 })
+    .padding({ left: 8, right: 8, top: 4, bottom: 4 })
     .backgroundColor('#0E0E12')
   }
 }

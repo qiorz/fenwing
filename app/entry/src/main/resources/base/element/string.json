@@ -6,11 +6,11 @@
     },
     {
       "name": "EntryAbility_desc",
-      "value": "description"
+      "value": "Gecko 内核驱动浏览器"
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "AirWeb"
     }
   ]
 }

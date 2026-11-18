@@ -140,7 +140,7 @@ struct Index {
         this.sectionTitle('引擎版本（NAPI getVersion）')
         this.infoRow('engine', this.version.engine)
         this.infoRow('buildId', this.version.buildId)
-        this.infoRow('Firefox 基线', this.version.geckoVersion)
+        this.infoRow('Gecko 内核基线', this.version.geckoVersion)
         this.infoRow('ABI', this.version.abi)
         this.infoRow('JS 引擎', this.version.jsEngine)
         this.infoRow('Rust 桥', `${this.version.rustBridge} (abi=${this.version.rustBridgeAbi})`)

@@ -273,6 +273,18 @@ export class BrowserDatabase {
     await this.requireStore().insert('downloads', values, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
   }
 
+  async deleteDownload(id: string): Promise<void> {
+    const predicates = new relationalStore.RdbPredicates('downloads');
+    predicates.equalTo('id', id);
+    await this.requireStore().delete(predicates);
+  }
+
+  async clearDownloads(profileId: string): Promise<void> {
+    const predicates = new relationalStore.RdbPredicates('downloads');
+    predicates.equalTo('profile_id', profileId);
+    await this.requireStore().delete(predicates);
+  }
+
   async listDownloads(profileId: string): Promise<Array<DownloadRecord>> {
     const predicates = new relationalStore.RdbPredicates('downloads');
     predicates.equalTo('profile_id', profileId);

@@ -18,6 +18,10 @@ export struct DownloadsView {
   };
   onRefresh: () => void = () => {
   };
+  onOpen: (id: string) => void = () => {
+  };
+  onClear: () => void = () => {
+  };
 
   private percentOf(record: DownloadRecord): number {
     if (record.totalBytes <= 0) {
@@ -60,6 +64,15 @@ export struct DownloadsView {
           .fontWeight(FontWeight.Medium)
           .fontColor('#E6E6F0')
         Blank()
+        Button('清空')
+          .fontSize(12)
+          .height(30)
+          .backgroundColor('#2A1A1F')
+          .fontColor('#E6A3A3')
+          .margin({ right: 6 })
+          .onClick(() => {
+            this.onClear();
+          })
         Button('刷新')
           .fontSize(12)
           .height(30)
@@ -115,6 +128,16 @@ export struct DownloadsView {
                       .fontColor('#CFE0FF')
                       .onClick(() => {
                         this.onRetry(record.id);
+                      })
+                  }
+                  if (record.state === DownloadState.COMPLETED && record.localPath.length > 0) {
+                    Button('打开')
+                      .fontSize(12)
+                      .height(28)
+                      .backgroundColor('#1F2A1F')
+                      .fontColor('#A8E6B0')
+                      .onClick(() => {
+                        this.onOpen(record.id);
                       })
                   }
                   if (record.state === DownloadState.DOWNLOADING || record.state === DownloadState.QUEUED) {

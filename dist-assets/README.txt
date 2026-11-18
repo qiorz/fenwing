@@ -1,15 +1,24 @@
-Firefox for HarmonyOS — Gecko 引擎二进制包 v1.0.0
-=================================================
+AirWeb — Gecko 引擎二进制包 v1.1.0
+==================================
 
 内容
 ----
   gecko/libs/arm64-v8a/*.so                    HSP 运行时要装载的全部原生库
-                                               （libxul.so 含 .permission 段，JIT 版）
+                                               （llvm-strip 全量瘦身；libxul.so 含
+                                                .permission 段，JIT 版）
   gecko/src/main/libs/arm64-v8a/libmozjs.so     gecko_napi (CMake) 链接用
   gecko/src/main/libs/arm64-v8a/include/       SpiderMonkey 公开头文件
-  gecko/src/main/resources/rawfile/omni.ja     GRE 资源包（不是普通 zip，请勿解压）
+  gecko/src/main/resources/rawfile/omni.ja     GRE 资源包，deflate 压缩版（约 20 MB；
+                                               不是普通 zip，请勿解压）
 
   install.ps1 / install.sh                     一键铺到 app/ 对应位置
+
+体积（相对 v1.0.0）
+-------------------
+  gecko libs        302 MB（未 strip）→ 213 MB
+  omni.ja           65.5 MB（STORED）  → 20.4 MB（deflate -6）
+  HSP 安装包         292.3 MB           → 250.2 MB（-14.4%）
+  首帧冷启动         5890 ms            → 5858 ms（无退化）
 
 来源
 ----
@@ -20,10 +29,10 @@ Firefox for HarmonyOS — Gecko 引擎二进制包 v1.0.0
 用法
 ----
   Windows:
-    powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppPath D:\path\to\firefox-ohos\app
+    powershell -ExecutionPolicy Bypass -File .\install.ps1 -AppPath D:\path\to\airweb\app
 
   Linux / WSL / macOS:
-    ./install.sh /path/to/firefox-ohos/app
+    ./install.sh /path/to/airweb/app
 
 然后用 DevEco Studio 打开 app/，配置本机签名后构建 HAP + HSP。
 
@@ -39,6 +48,8 @@ Firefox for HarmonyOS — Gecko 引擎二进制包 v1.0.0
 
 许可
 ----
-  二进制来自 MPL-2.0 的 Gecko 代码。对应源码获取方式见仓库根目录 NOTICE 与
-  engine/PROVENANCE.md。Gecko / Firefox 是 Mozilla Foundation 的商标，本包
-  与 Mozilla 无隶属关系。
+  AirWeb 使用 Mozilla Public License 2.0。二进制来自 MPL-2.0 的 Gecko 代码，
+  对应源码的获取方式见仓库 SOURCE-OFFER.md 与 engine/PROVENANCE.md。
+  FFmpeg / libvpx 以动态库形式链接（LGPL-2.1+ / BSD），未修改源码。
+  "Firefox"、"Gecko" 是 Mozilla Foundation 的商标；本项目与 Mozilla 无隶属关系，
+  仅作事实性技术说明，不发布任何 Mozilla 品牌产物。

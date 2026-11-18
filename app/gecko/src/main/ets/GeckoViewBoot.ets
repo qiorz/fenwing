@@ -26,6 +26,7 @@ export interface GeckoViewHandlers {
   onDownload?: (json: string) => void;
   onFilePicker?: (json: string, callbackId: number) => void;
   onFullscreen?: (fullscreen: boolean) => void;
+  onMenu?: (json: string) => void;
 }
 
 export class GeckoViewBoot {
@@ -85,6 +86,22 @@ export class GeckoViewBoot {
           }
         });
       }
+      if (handlers.onMenu !== undefined) {
+        geckoview.registerMenuCallback((json: string) => {
+          if (handlers.onMenu !== undefined) {
+            handlers.onMenu(json);
+          }
+        });
+      }
+      if (handlers.onDownload !== undefined) {
+        geckoview.registerDownloadCallback
+        geckoview.registerMenuCallback((json: string) => {
+          if (handlers.onMenu !== undefined) {
+            handlers.onMenu(json);
+          }
+        });
+      }
+
       if (handlers.onDownload !== undefined) {
         geckoview.registerDownloadCallback((json: string) => {
           if (handlers.onDownload !== undefined) {
@@ -247,6 +264,16 @@ export class GeckoViewBoot {
     geckoview.deleteText(length);
   }
 
+  static resolveMenuCommand(menuId: number, itemId: number, modifiers: number): void {
+    hilog.info(DOMAIN, TAG, 'resolveMenuCommand menu=%{public}d item=%{public}d', menuId, itemId);
+    geckoview.resolveMenuCommand(menuId, itemId, modifiers);
+  }
+
+  static closeNativeMenu(menuId: number): void {
+    hilog.info(DOMAIN, TAG, 'closeNativeMenu menu=%{public}d', menuId);
+    geckoview.closeNativeMenu(menuId);
+  }
+
   static resolveFilePicker(callbackId: number, result: number, path: string): void {
     hilog.info(DOMAIN, TAG, 'resolveFilePicker id=%{public}d result=%{public}d', callbackId, result);
     geckoview.resolveFilePicker(callbackId, result, path);
@@ -259,6 +286,11 @@ export class GeckoViewBoot {
   static findInPage(query: string, backward: boolean, matchCase: boolean): void {
     hilog.info(DOMAIN, TAG, 'findInPage %{public}s', query);
     geckoview.findInPage(query, backward ? 1 : 0, matchCase ? 1 : 0);
+  }
+
+  static setBoolPref(name: string, value: boolean): void {
+    hilog.info(DOMAIN, TAG, 'setBoolPref %{public}s=%{public}s', name, `${value}`);
+    geckoview.setBoolPref(name, value ? 1 : 0);
   }
 
   static setFullZoom(zoom: number): void {

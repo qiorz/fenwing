@@ -25,6 +25,8 @@ export struct AddressBar {
   };
   onStop: () => void = () => {
   };
+  onInput: (text: string) => void = () => {
+  };
 
   aboutToAppear(): void {
     this.draft = this.url;
@@ -40,9 +42,9 @@ export struct AddressBar {
       .fontSize(16)
       .fontColor(enabled ? '#E6E6F0' : '#4A4A5C')
       .backgroundColor('#1C1C26')
-      .borderRadius(8)
-      .width(36)
-      .height(36)
+      .borderRadius(6)
+      .width(30)
+      .height(30)
       .enabled(enabled)
       .onClick(() => {
         action();
@@ -55,9 +57,10 @@ export struct AddressBar {
         .fontSize(16)
         .fontColor(this.canGoBack ? '#E6E6F0' : '#4A4A5C')
         .backgroundColor('#1C1C26')
-        .borderRadius(8)
-        .width(36)
-        .height(36)
+        .borderRadius(6)
+        .width(32)
+        .height(30)
+        .padding(0)
         .enabled(this.canGoBack)
         .onClick(() => {
           this.onBack();
@@ -66,9 +69,10 @@ export struct AddressBar {
         .fontSize(16)
         .fontColor(this.canGoForward ? '#E6E6F0' : '#4A4A5C')
         .backgroundColor('#1C1C26')
-        .borderRadius(8)
-        .width(36)
-        .height(36)
+        .borderRadius(6)
+        .width(32)
+        .height(30)
+        .padding(0)
         .enabled(this.canGoForward)
         .onClick(() => {
           this.onForward();
@@ -88,38 +92,33 @@ export struct AddressBar {
         .fontColor('#E6E6F0')
         .placeholderColor('#6E6E85')
         .backgroundColor('#1C1C26')
-        .borderRadius(8)
-        .height(36)
+        .borderRadius(6)
+        .height(30)
         .layoutWeight(1)
         .enterKeyType(EnterKeyType.Go)
         .onChange((value: string) => {
           this.draft = value;
+          this.onInput(value);
         })
         .onSubmit(() => {
+          this.onInput('');
           this.onNavigate(this.draft);
         })
 
-      if (this.privateMode) {
-        Text('私密')
-          .fontSize(11)
-          .fontColor('#C9A7FF')
-          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .backgroundColor('#2A1F3A')
-          .borderRadius(6)
-      }
-
       Button('前往')
-        .fontSize(13)
-        .height(36)
+        .fontSize(12)
+        .height(30)
+        .width(64)
+        .padding(0)
         .backgroundColor('#4C6FFF')
         .fontColor('#FFFFFF')
-        .borderRadius(8)
+        .borderRadius(6)
         .onClick(() => {
           this.onNavigate(this.draft);
         })
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+    .padding({ left: 8, right: 8, top: 4, bottom: 4 })
     .backgroundColor('#12121A')
   }
 }

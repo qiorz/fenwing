@@ -15,7 +15,7 @@ HarmonyOS/OpenHarmony 平台适配层并非从零开始，它站在社区工作�
 - 社区项目：[`ohos_gecko-opensource`](https://gitcode.com/OpenHarmonyPCDeveloper/ohos_gecko-opensource)
   （gitcode，OpenHarmonyPCDeveloper），同样以 MPL-2.0 发布。
 - 该项目的 README 描述了 `widget/openharmony`、`ports/ohos`、WebRender/EGL、
-  `browser` chrome ArkTS 化等一整套平台层；本工程的内核树正是以它的 v271 适配层为蓝本，
+  `browser` chrome ArkTS 化等一整套平台层；本工程的内核树以它的 v271 适配层为蓝本，
   在 `5836a062` 基线上继续做了大量调试与功能修补。
 
 **必须说清楚边界**：
@@ -27,32 +27,48 @@ HarmonyOS/OpenHarmony 平台适配层并非从零开始，它站在社区工作�
 - 如果要追溯某个子系统「最初是谁写的」，请优先参考社区仓库；本仓库的补丁只保证
   「能复现我们构建出来的东西」。
 
-## 3. 本工程的增量（相对社区适配层）
+## 3. 本工程的增量
 
-从提交与文档可确认的部分：
+**引擎侧（相对社区适配层）**
 
-- P0：`SessionStore`（防抖落盘、异常退出标记）、20 s 加载看门狗、ArkTS 错误覆盖层；
-- P1：下载回调 → 横幅/落库、`DocumentViewPicker` 文件选择（URI → 沙箱路径）、
-  全屏外壳隐藏、页内查找、整页缩放；
-- 引擎侧：JS 标题/URL 同步契约修正、`--airweb-force-no-jit` 开关、JIT 探测与降级、
-  `omni.ja` 目录形式传参、`libgeckoxcomp.so` 去 build-id、`libz.so` 自建等。
+- `geckoview.js` 内容区菜单构造：刷新、复制链接、显示/隐藏工具栏、在新标签页打开链接、
+  保存图片、复制图片地址、复制页面地址/标题（通过 `airweb-tab-state` 信封回传 ArkTS）；
+- 标题 / URL / 下载 / 菜单回调契约修正，`--airweb-force-no-jit` 开关，JIT 探测与自动降级；
+- `omni.ja` 目录形式传参、`libgeckoxcomp.so` 去 build-id、自建 `libz.so`；
+- `omni.ja` 打包改为 deflate（体积 65.5 → 20.4 MB）。
+
+**应用侧（AirWeb）**
+
+- P0：`SessionStore` 防抖落盘、异常退出判定、20 s 加载看门狗、ArkTS 错误覆盖层，
+  恢复横幅携带「上次停留 URL」；
+- P1：下载回调与横幅、`DocumentViewPicker`（URI → 沙箱路径）、全屏外壳隐藏、
+  页内查找、整页缩放；
+- P1.5：地址栏单行 + 底栏三行压两行（内容区 +80–100 vp）、原生菜单浮层
+  （子菜单/勾选/快捷键/禁用态/锚点定位）；
+- P2：新标签打开链接、保存图片、下载「打开/清空」、引擎驱动的历史记录、
+  地址栏历史/书签补全；
+- P3：`build-all` / `verify-snapshot` / `install-device` / `smoke-test` / `soak-test`
+  与本地 CI；
+- P4：更名 AirWeb、随包许可三件套、权限与隐私说明。
 
 ## 4. 二进制产物
 
-`Releases` 里的 `firefox-ohos-engine-1.0.0.zip` 由上述树编译：
+`Releases` 里的 `airweb-engine-1.1.0.zip` 由上述树编译：
 
 | 文件 | 说明 |
 |---|---|
 | `libxul.so` (185 MB) | Gecko 主库，strip 后、带 `.permission`（JIT 版） |
 | `libgeckoview.so` | OHOS 平台层 |
 | `libgeckoxcomp.so` | 同一 NAPI 模块副本，去掉 build-id 供 XComponent 触发注册 |
-| `libmozjs*.so` / NSS / NSPR / gkcodecs … | 运行时依赖 |
-| `omni.ja` (62 MB) | GRE 资源包 |
+| `libmozjs*.so` / NSS / NSPR / gkcodecs … | 运行时依赖（全量 strip） |
+| `omni.ja` (20.4 MB) | GRE 资源包（deflate） |
 
-MPL-2.0 对二进制分发的要求是「提供对应源码的获取方式」——本仓库的 `engine/` 满足这一点：
-基线提交公开可得，补丁在本仓库内。
+MPL-2.0 对二进制分发的要求是「提供对应源码的获取方式」——本仓库的 `engine/` + 
+[`docs/SOURCE-OFFER.md`](../docs/SOURCE-OFFER.md) 满足这一点：基线提交公开可得，补丁在本仓库内。
 
-## 5. 商标
+## 5. 商标与更名
 
-“Firefox”“Gecko”“Mozilla” 是 Mozilla Foundation 的商标。本仓库与 Mozilla 无隶属或背书关系，
-仅用于技术验证与研究；产物不随附任何 Mozilla 品牌资源（图标为工程自绘/占位）。
+“Firefox”“Gecko”“Mozilla” 是 Mozilla Foundation 的商标。本项目原名
+“Firefox for HarmonyOS”，2026-11-18 按 Mozilla 商标政策更名为 **AirWeb**：
+应用名、窗口标题、界面文案不再使用 Firefox 品牌，仅保留“基于 Gecko 142”的技术事实描述。
+AirWeb 与 Mozilla 无隶属、赞助或背书关系，产物不随附任何 Mozilla 品牌资源。
