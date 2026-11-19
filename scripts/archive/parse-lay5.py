@@ -1,4 +1,4 @@
-import json
+﻿import json
 d=json.load(open('/mnt/d/ff-ohos/logs/lay5.json',encoding='utf-8'))
 want=['前往','−','+','☰','←','→','查找']
 def walk(n):

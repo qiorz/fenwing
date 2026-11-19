@@ -70,6 +70,7 @@ struct BrowserPage {
   @State private findQuery: string = '';
   @State private findMatchCase: boolean = false;
   @State private fullscreenUi: boolean = false;
+  @StorageProp('geckoProgress') geckoProgress: number = 0;
   @StorageProp('geckoMenuSeq') @Watch('onMenuEvent') geckoMenuSeq: number = 0;
   @StorageProp('geckoMenu') geckoMenuRaw: string = '';
   @State private menuVisible: boolean = false;
@@ -79,6 +80,12 @@ struct BrowserPage {
   @State private menuY: number = 0;
   @State private contentWidth: number = 0;
   @State private suggestions: Array<string> = [];
+  @State private uaMode: string = 'standard';
+  @State private scrollBarVisible: boolean = false;
+  @State private scrollY: number = 0;
+  @State private scrollMax: number = 0;
+  private scrollHideTimer: number = -1;
+  private scrollPanLast: number = 0;
   @State private showSuggestions: boolean = false;
   private lastHistoryUrl: string = '';
   @State private contentHeight: number = 0;
@@ -123,7 +130,8 @@ struct BrowserPage {
 
   @State private accountName: string = '';
   @State private engineLabel: string = '正在初始化原生桥…';
-  @State private statusMessage: string = '';
+  @State @Watch('onStatusMessageChanged') private statusMessage: string = '';
+  private statusHideTimer: number = -1;
   @State private engineRenderReady: boolean = false;
 
   private viewModel: TabViewModel = new TabViewModel();
@@ -278,6 +286,52 @@ struct BrowserPage {
     }
   }
 
+  private onStatusMessageChanged(): void {
+    if (this.statusHideTimer >= 0) {
+      clearTimeout(this.statusHideTimer);
+      this.statusHideTimer = -1;
+    }
+    if (this.statusMessage.length > 0) {
+      this.statusHideTimer = setTimeout(() => {
+        this.statusMessage = '';
+        this.statusHideTimer = -1;
+      }, 3000);
+    }
+  }
+
+  private applyUserAgent(): void {
+    let mode: string = this.uaMode;
+    if (mode === 'harmony') {
+      mode = 'standard';
+    } else if (mode === 'windows') {
+      mode = 'desktop';
+    }
+    let ua: string = '';
+    if (mode === 'chrome') {
+      ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    } else if (mode === 'desktop') {
+      ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0';
+    } else if (mode === 'mobile') {
+      ua = 'Mozilla/5.0 (Android 13; Mobile; rv:142.0) Gecko/142.0 Firefox/142.0';
+    } else {
+      ua = 'Mozilla/5.0 (HarmonyOS 5.0; Mobile; rv:142.0) Gecko/142.0 Firefox/142.0';
+    }
+    try {
+      GeckoViewBoot.setCharPref('general.useragent.override', ua);
+      hilog.info(DOMAIN, TAG, 'ua applied mode=%{public}s', this.uaMode);
+    } catch (error) {
+      hilog.warn(DOMAIN, TAG, 'ua apply failed');
+    }
+  }
+
+  private setUaMode(mode: string): void {
+    this.uaMode = mode;
+    this.settings.setUserAgentMode(mode).catch((error: Object) => {
+      hilog.warn(DOMAIN, TAG, 'ua persist failed');
+    });
+    this.applyUserAgent();
+  }
+
   private onMenuEvent(): void {
     if (this.geckoMenuRaw.length === 0) {
       return;
@@ -407,6 +461,14 @@ struct BrowserPage {
       this.doNotTrack = this.settings.isDoNotTrackEnabled();
       this.privateByDefault = this.settings.isPrivateByDefault();
       this.searchEngine = this.settings.getSearchEngine();
+    this.uaMode = this.settings.getUserAgentMode();
+    if (this.uaMode === 'harmony') {
+      this.uaMode = 'standard';
+      this.settings.setUserAgentMode('standard');
+    } else if (this.uaMode === 'windows') {
+      this.uaMode = 'desktop';
+      this.settings.setUserAgentMode('desktop');
+    }
     } catch (error) {
       this.statusMessage = `设置读取失败：${JSON.stringify(error)}`;
     }
@@ -460,6 +522,9 @@ struct BrowserPage {
     if (this.engineRenderReady) {
       this.startLoadWatchdog();
     }
+    setTimeout(() => {
+      this.applyUserAgent();
+    }, 2000);
     if (this.debugCtxMenu) {
       setTimeout(() => {
         const size = GeckoViewBoot.surfaceSize();
@@ -519,6 +584,23 @@ struct BrowserPage {
     }
     try {
       const event: TitleEvent = JSON.parse(this.geckoTitleEvent) as TitleEvent;
+      if (event.session === '__scroll__') {
+        try {
+          const info: ScrollInfo = JSON.parse(event.url) as ScrollInfo;
+          this.scrollY = info.y;
+          this.scrollMax = info.max;
+          this.scrollBarVisible = info.max > 0;
+          if (this.scrollHideTimer >= 0) {
+            clearTimeout(this.scrollHideTimer);
+          }
+          this.scrollHideTimer = setTimeout(() => {
+            this.scrollBarVisible = false;
+            this.scrollHideTimer = -1;
+          }, 3000);
+        } catch (error) {
+        }
+        return;
+      }
       if (event.session === '__opentab__') {
         this.openUrlInNewTab(event.url);
         return;
@@ -590,6 +672,8 @@ struct BrowserPage {
   }
 
   private onAddressInput(text: string): void {
+    this.showSuggestions = false;
+    return;
     if (text.length === 0) {
       this.showSuggestions = false;
       return;
@@ -1223,6 +1307,22 @@ struct BrowserPage {
       }
 
 
+      if (this.loading) {
+        Stack({ alignContent: Alignment.Start }) {
+          Row()
+            .width('100%')
+            .height(4)
+            .backgroundColor('#2A2A3A')
+          Row()
+            .width(`${Math.max(6, this.geckoProgress)}%`)
+            .height(4)
+            .backgroundColor('#4C6FFF')
+            .borderRadius(2)
+        }
+        .width('100%')
+        .height(4)
+      }
+
       if (this.showSuggestions && this.suggestions.length > 0) {
         Column({ space: 2 }) {
           ForEach(this.suggestions, (value: string) => {
@@ -1340,6 +1440,36 @@ struct BrowserPage {
           }
           .width('100%')
           .height('100%')
+        }
+
+        if (this.scrollBarVisible && this.scrollMax > 0 && this.contentHeight > 0) {
+          Column() {
+            Blank()
+              .layoutWeight(Math.max(0.001, this.scrollMax > 0 ? this.scrollY / this.scrollMax : 0))
+            Row()
+              .width(8)
+              .height(Math.max(40, Math.min(this.contentHeight * 0.6,
+                this.contentHeight * this.contentHeight / (this.scrollMax + this.contentHeight))))
+              .backgroundColor('#FF5B9BFF')
+              .borderRadius(3)
+              .gesture(
+                PanGesture()
+                  .onActionStart(() => {
+                    this.scrollPanLast = 0;
+                  })
+                  .onActionUpdate((event: GestureEvent) => {
+                    const delta: number = event.offsetY - this.scrollPanLast;
+                    this.scrollPanLast = event.offsetY;
+                    GeckoViewBoot.scroll(0, delta * 3, this.contentWidth / 2, this.contentHeight / 2);
+                  })
+              )
+            Blank()
+              .layoutWeight(Math.max(0.001, this.scrollMax > 0 ? 1 - this.scrollY / this.scrollMax : 1))
+          }
+          .width('100%')
+          .height('100%')
+          .alignItems(HorizontalAlign.End)
+          .hitTestBehavior(HitTestMode.Transparent)
         }
 
         if (this.loadError.length > 0) {
@@ -1632,6 +1762,7 @@ struct BrowserPage {
             searchEngine: this.searchEngine,
             accountName: this.accountName,
             engineLabel: this.engineLabel,
+            uaMode: this.uaMode,
             onToggleJavascript: (enabled: boolean) => {
               this.javascriptEnabled = enabled;
               this.settings.setJavascriptEnabled(enabled);
@@ -1647,6 +1778,9 @@ struct BrowserPage {
             onTogglePrivateByDefault: (enabled: boolean) => {
               this.privateByDefault = enabled;
               this.settings.setPrivateByDefault(enabled);
+            },
+            onUaModeChange: (mode: string) => {
+              this.setUaMode(mode);
             },
             onChangeSearchEngine: (value: string) => {
               this.searchEngine = value;
@@ -1743,4 +1877,9 @@ class MenuRow {
   disabled: boolean = false;
   checked: boolean = false;
   depth: number = 0;
+}
+
+interface ScrollInfo {
+  y: number;
+  max: number;
 }

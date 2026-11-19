@@ -248,6 +248,11 @@ export class GeckoViewBoot {
     geckoview.mouseUp(x, y, button);
   }
 
+  static setCharPref(name: string, value: string): void {
+    hilog.info(DOMAIN, TAG, 'setCharPref %{public}s=%{public}s', name, value);
+    geckoview.setCharPref(name, value);
+  }
+
   static scroll(dx: number, dy: number, x: number, y: number): void {
     geckoview.scroll(dx, dy, x, y);
   }

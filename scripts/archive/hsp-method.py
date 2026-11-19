@@ -1,4 +1,4 @@
-import zipfile
+﻿import zipfile
 p='D:/ff-ohos/work/firefoxport/gecko/build/default/outputs/default/gecko-default-signed.hsp'
 z=zipfile.ZipFile(p)
 for n in z.namelist():

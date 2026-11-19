@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/entryability/EntryAbility.ets'
 s=io.open(p,encoding='utf-8').read()
 repl=[('i<20000000','i<3000000'),('i<2000000','i<300000'),('i<200000;','i<20000;'),('i<100000;','i<20000;'),('i<300000;','i<30000;')]

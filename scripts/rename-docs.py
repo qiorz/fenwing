@@ -1,4 +1,4 @@
-import io,glob,os
+﻿import io,glob,os
 files=glob.glob('/mnt/d/dsh/homo移植/docs/*.md')+glob.glob('/mnt/d/ff-ohos/work/firefoxport/entry/src/main/resources/rawfile/legal/*.txt')
 for p in files:
     try:

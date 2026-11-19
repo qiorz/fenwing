@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Target = '192.168.1.2:38247',
   [switch]$Reinstall,
   [switch]$ForceHsp

@@ -1,4 +1,4 @@
-import io,re
+﻿import io,re
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/entryability/EntryAbility.ets'
 s=io.open(p,encoding='utf-8').read()
 old="'<p><input type=\"file\" id=\"f\" style=\"font-size:26px;width:620px\"></p>'"

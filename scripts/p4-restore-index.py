@@ -1,4 +1,4 @@
-import io
+﻿import io
 src='/mnt/d/ff-ohos/refs/firefoxport/entry/src/main/ets/pages/Index.ets'
 dst='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/pages/Index.ets'
 s=io.open(src,encoding='utf-8').read()

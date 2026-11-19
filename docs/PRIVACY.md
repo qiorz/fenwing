@@ -1,6 +1,6 @@
 # Fenwing 隐私说明
 
-> 版本：1.2.0 · 更新：2026-11-18
+> 版本：1.3.0 · 更新：2026-11-18
 > 适用：Fenwing（HarmonyOS / OpenHarmony arm64，包名 `com.example.firefoxport`）的侧载、
 > 内测与企业分发版本。
 

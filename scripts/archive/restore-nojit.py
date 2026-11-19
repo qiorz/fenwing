@@ -1,4 +1,4 @@
-import io
+﻿import io
 ROOT='/mnt/d/ff-ohos/work/firefoxport'
 # 1) restore force-no-jit flag until ACL is available
 p=ROOT+'/gecko/src/main/ets/GeckoViewBoot.ets'

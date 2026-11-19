@@ -252,6 +252,9 @@ index 038a7a6a8c..ea8619901d 100644
 +  Unused << aCacheDomains;
 +  return aCacheDomains;
 +}
+diff --git a/accessible/xpcom/*.idl b/accessible/xpcom/*.idl
+new file mode 100644
+index 0000000000..e69de29bb2
 diff --git a/browser/app/moz.build b/browser/app/moz.build
 index 37f9b0f8be..67b066ee82 100644
 --- a/browser/app/moz.build
@@ -19979,6 +19982,118 @@ index 8b6621b4b8..85fca90da0 100644
      if (atp_set_real_time_limit(0, 48000)) {
        NS_WARNING("could not set real-time limit in CubebUtils::InitLibrary");
      }
+diff --git a/dom/media/MediaDecoderStateMachine.cpp b/dom/media/MediaDecoderStateMachine.cpp
+index 8ba3e9f900..251434e1c8 100644
+--- a/dom/media/MediaDecoderStateMachine.cpp
++++ b/dom/media/MediaDecoderStateMachine.cpp
+@@ -5,6 +5,16 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "MediaDecoderStateMachine.h"
++// Temporary OHOS diagnostic logging (dlopen hilog, survives link flags).
++#include <dlfcn.h>
++#define OHOS_SM_HLOG(...)                                      \
++  do {                                                         \
++    typedef int (*OhLogPrintFn)(int, int, unsigned int, const char*, const char*, ...); \
++    static void* sH = dlopen("libhilog_ndk.z.so", RTLD_NOW);   \
++    static OhLogPrintFn sP = sH ? (OhLogPrintFn)dlsym(sH, "OH_LOG_Print") : nullptr; \
++    if (sP && getenv("OHOS_DIAG_LOG")) { sP(0, 4, 0, "OHOSSM", __VA_ARGS__); }            \
++  } while (0)
++
+ 
+ #include <algorithm>
+ #include <stdint.h>
+@@ -3593,6 +3603,9 @@ void MediaDecoderStateMachine::PushVideo(VideoData* aSample) {
+   MOZ_ASSERT(OnTaskQueue());
+   MOZ_ASSERT(aSample);
+   aSample->mFrameID = ++mCurrentFrameID;
++  OHOS_SM_HLOG("video push pts=%{public}lld queue=%{public}d",
++               (long long)aSample->mTime.ToMicroseconds(),
++               (int)VideoQueue().GetSize());
+   VideoQueue().Push(aSample);
+   PROFILER_MARKER("MDSM::PushVideo", MEDIA_PLAYBACK, {}, MediaSampleMarker,
+                   aSample->mTime.ToMicroseconds(),
+@@ -3666,6 +3679,8 @@ void MediaDecoderStateMachine::StopPlayback() {
+ }
+ 
+ void MediaDecoderStateMachine::MaybeStartPlayback() {
++  OHOS_SM_HLOG("MaybeStartPlayback enter vq=%{public}d aq=%{public}d",
++               (int)mVideoQueue.GetSize(), (int)mAudioQueue.GetSize());
+   MOZ_ASSERT(OnTaskQueue());
+   // Should try to start playback only after decoding first frames.
+   if (!mSentFirstFrameLoadedEvent) {
+diff --git a/dom/media/MediaFormatReader.cpp b/dom/media/MediaFormatReader.cpp
+index 2431292a5b..0f5389e788 100644
+--- a/dom/media/MediaFormatReader.cpp
++++ b/dom/media/MediaFormatReader.cpp
+@@ -5,6 +5,18 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "MediaFormatReader.h"
++#include <cstdio>
++#include <cstdarg>
++static void READERLOG(const char* aFmt, ...) {
++  if (!getenv("OHOS_DIAG_LOG")) { return; }
++  char buf[192];
++  va_list ap; va_start(ap, aFmt);
++  vsnprintf(buf, sizeof(buf), aFmt, ap);
++  va_end(ap);
++  FILE* f = fopen("/data/storage/el2/base/haps/entry/files/ohosdec.log", "a");
++  if (f) { fprintf(f, "%s\n", buf); fclose(f); }
++}
++
+ 
+ #include <algorithm>
+ #include <map>
+@@ -1731,6 +1743,9 @@ void MediaFormatReader::OnAudioDemuxCompleted(
+ 
+ void MediaFormatReader::NotifyNewOutput(
+     TrackType aTrack, MediaDataDecoder::DecodedData&& aResults) {
++  READERLOG("READER output n=%d pts0=%lld", (int)aResults.Length(),
++            aResults.IsEmpty() ? -1 : (long long)aResults[0]->mTime.ToMicroseconds());
++
+   AUTO_PROFILER_LABEL("MediaFormatReader::NotifyNewOutput", MEDIA_PLAYBACK);
+   MOZ_ASSERT(OnTaskQueue());
+   auto& decoder = GetDecoderData(aTrack);
+diff --git a/dom/media/platforms/PDMFactory.cpp b/dom/media/platforms/PDMFactory.cpp
+index 85d94141fc..d2f8a9ea99 100644
+--- a/dom/media/platforms/PDMFactory.cpp
++++ b/dom/media/platforms/PDMFactory.cpp
+@@ -54,6 +54,9 @@
+ #ifdef MOZ_WIDGET_ANDROID
+ #  include "AndroidDecoderModule.h"
+ #endif
++#ifdef MOZ_WIDGET_OPENHARMONY
++#  include "ohos/OHOSDecoderModule.h"
++#endif
+ #ifdef MOZ_OMX
+ #  include "OmxDecoderModule.h"
+ #endif
+@@ -737,6 +740,12 @@ void PDMFactory::CreateDefaultPDMs() {
+                StaticPrefs::media_android_media_codec_preferred());
+   }
+ #endif
++#ifdef MOZ_WIDGET_OPENHARMONY
++  if (access("/data/storage/el2/base/haps/entry/files/hwdecode.off",
++             F_OK) != 0) {
++    StartupPDM(OHOSDecoderModule::Create(), /* aPreferred */ true);
++  }
++#endif
+ 
+   StartupPDM(AgnosticDecoderModule::Create(),
+              StaticPrefs::media_prefer_non_ffvpx());
+diff --git a/dom/media/platforms/PDMFactory.h b/dom/media/platforms/PDMFactory.h
+index 662a2e9c96..ceea6f2ddd 100644
+--- a/dom/media/platforms/PDMFactory.h
++++ b/dom/media/platforms/PDMFactory.h
+@@ -87,6 +87,7 @@ class PDMFactory final {
+   void CreateDefaultPDMs();
+ 
+   // Startup the provided PDM and add it to our list if successful.
++  bool mOHOSPDMStarted = false;
+   bool StartupPDM(already_AddRefed<PlatformDecoderModule> aPDM,
+                   bool aInsertAtBeginning = false);
+   // Returns the first PDM in our list supporting the mimetype.
 diff --git a/dom/media/platforms/ffmpeg/ffvpx/FFVPXRuntimeLinker.cpp b/dom/media/platforms/ffmpeg/ffvpx/FFVPXRuntimeLinker.cpp
 index 77acaa1a88..17d1e13397 100644
 --- a/dom/media/platforms/ffmpeg/ffvpx/FFVPXRuntimeLinker.cpp
@@ -20008,6 +20123,735 @@ index 77acaa1a88..17d1e13397 100644
    FFmpegLibWrapper::LinkResult res = sFFVPXLib.Link();
    FFMPEGP_LOG("Link result: %s", ToString(res).c_str());
    if (res == FFmpegLibWrapper::LinkResult::Success) {
+diff --git a/dom/media/platforms/moz.build b/dom/media/platforms/moz.build
+index 237cbc9f04..f42ad4d0d6 100644
+--- a/dom/media/platforms/moz.build
++++ b/dom/media/platforms/moz.build
+@@ -46,6 +46,9 @@ UNIFIED_SOURCES += [
+ 
+ DIRS += ["agnostic/bytestreams", "agnostic/eme", "agnostic/gmp", "omx"]
+ 
++DIRS += ["ohos"]
++
++
+ if CONFIG["MOZ_WMF"]:
+     DIRS += ["wmf"]
+ 
+diff --git a/dom/media/platforms/ohos/OHOSDecoderModule.cpp b/dom/media/platforms/ohos/OHOSDecoderModule.cpp
+new file mode 100755
+index 0000000000..caef53dc09
+--- /dev/null
++++ b/dom/media/platforms/ohos/OHOSDecoderModule.cpp
+@@ -0,0 +1,63 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#include "OHOSDecoderModule.h"
++
++#include <cstdio>
++static void OHOSMarker(const char* aMsg) {
++  FILE* f = fopen("/data/storage/el2/base/haps/entry/files/ohosdec.log", "a");
++  if (f) {
++    fprintf(f, "%s\n", aMsg);
++    fclose(f);
++  }
++}
++
++#include "OHOSVideoDecoder.h"
++#include <cstdio>
++static void MPtrTag(const char* aTag, void* p, int a) {
++  char buf[128];
++  snprintf(buf, sizeof(buf), "%s p=%p a=%d", aTag, p, a);
++  FILE* f = fopen("/data/storage/el2/base/haps/entry/files/ohosdec.log", "a");
++  if (f) { fprintf(f, "%s\n", buf); fclose(f); }
++}
++
++
++#include "VideoUtils.h"
++#include "mozilla/StaticPrefs_media.h"
++
++namespace mozilla {
++
++already_AddRefed<PlatformDecoderModule> OHOSDecoderModule::Create() {
++  OHOSMarker("OHOSDEC module Create");
++  return MakeAndAddRef<OHOSDecoderModule>();
++}
++
++media::DecodeSupportSet OHOSDecoderModule::SupportsMimeType(
++    const nsACString& aMimeType, DecoderDoctorDiagnostics*) const {
++  if (aMimeType.EqualsLiteral("video/avc") ||
++      aMimeType.EqualsLiteral("video/hevc")) {
++    return media::DecodeSupportSet{media::DecodeSupport::HardwareDecode};
++  }
++  return media::DecodeSupportSet{};
++}
++
++already_AddRefed<MediaDataDecoder> OHOSDecoderModule::CreateVideoDecoder(
++    const CreateDecoderParams& aParams) {
++  OHOSMarker("OHOSDEC CreateVideoDecoder called");
++  const TrackInfo& info = aParams.mConfig;
++  if (!info.GetAsVideoInfo()) {
++    return nullptr;
++  }
++  const nsACString& mime = info.mMimeType;
++  if (!mime.EqualsLiteral("video/avc") && !mime.EqualsLiteral("video/hevc")) {
++    return nullptr;
++  }
++  RefPtr<MediaDataDecoder> decoder =
++      MakeAndAddRef<OHOSVideoDecoder>(aParams, mime);
++  MPtrTag("CREATE", decoder.get(), 0);
++  MPtrTag("CREATE", decoder.get(), 0);
++  return decoder.forget();
++}
++
++}  // namespace mozilla
+diff --git a/dom/media/platforms/ohos/OHOSDecoderModule.h b/dom/media/platforms/ohos/OHOSDecoderModule.h
+new file mode 100755
+index 0000000000..69ef5d515c
+--- /dev/null
++++ b/dom/media/platforms/ohos/OHOSDecoderModule.h
+@@ -0,0 +1,38 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#ifndef DOM_MEDIA_PLATFORMS_OHOS_OHOSDECODERMODULE_H_
++#define DOM_MEDIA_PLATFORMS_OHOS_OHOSDECODERMODULE_H_
++
++#include "PlatformDecoderModule.h"
++
++namespace mozilla {
++
++// Phase 1 hardware decoder: OpenHarmony OH_AVCodec video decoder (H.264/HEVC)
++// producing NV12 frames as PlanarYCbCrImage.
++class OHOSDecoderModule : public PlatformDecoderModule {
++ public:
++  OHOSDecoderModule() = default;
++
++  static already_AddRefed<PlatformDecoderModule> Create();
++
++  media::DecodeSupportSet SupportsMimeType(
++      const nsACString& aMimeType,
++      DecoderDoctorDiagnostics* aDiagnostics) const override;
++
++  already_AddRefed<MediaDataDecoder> CreateVideoDecoder(
++      const CreateDecoderParams& aParams) override;
++
++  already_AddRefed<MediaDataDecoder> CreateAudioDecoder(
++      const CreateDecoderParams& aParams) override {
++    return nullptr;
++  }
++
++ private:
++  ~OHOSDecoderModule() = default;
++};
++
++}  // namespace mozilla
++
++#endif
+diff --git a/dom/media/platforms/ohos/OHOSVideoDecoder.cpp b/dom/media/platforms/ohos/OHOSVideoDecoder.cpp
+new file mode 100755
+index 0000000000..e101638f3b
+--- /dev/null
++++ b/dom/media/platforms/ohos/OHOSVideoDecoder.cpp
+@@ -0,0 +1,490 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#include "OHOSVideoDecoder.h"
++
++#include <dlfcn.h>
++
++#include <multimedia/player_framework/native_avbuffer.h>
++#include <multimedia/player_framework/native_avformat.h>
++
++#include "ImageContainer.h"
++#include "nsThreadUtils.h"
++#include "VideoUtils.h"
++#include "mozilla/Logging.h"
++#include <cstdio>
++static void OHOSPtrTag(const char* aTag, void* p, int a, int b) {
++  if (!getenv("OHOS_DIAG_LOG")) { return; }
++  char buf[160];
++  snprintf(buf, sizeof(buf), "%s p=%p a=%d b=%d", aTag, p, a, b);
++  FILE* f = fopen("/data/storage/el2/base/haps/entry/files/ohosdec.log", "a");
++  if (f) { fprintf(f, "%s\n", buf); fclose(f); }
++}
++
++#include <cstdio>
++static void OHOSStatGlobal(const char* aTag, int a, int b, int c) {
++  if (!getenv("OHOS_DIAG_LOG")) { return; }
++  char buf[160];
++  snprintf(buf, sizeof(buf), "%s a=%d b=%d c=%d", aTag, a, b, c);
++  FILE* f = fopen("/data/storage/el2/base/haps/entry/files/ohosdec.log", "a");
++  if (f) { fprintf(f, "%s\n", buf); fclose(f); }
++}
++
++
++namespace mozilla {
++
++LazyLogModule gOHOSDecoderLog("OHOSDecoder");
++#define LOG(...) MOZ_LOG(gOHOSDecoderLog, LogLevel::Info, (__VA_ARGS__))
++#define OHOS_HLOG(...)                                       \
++  do {                                                       \
++    typedef int (*OhLogPrintFn)(int, int, unsigned int,      \
++                                const char*, const char*, ...); \
++    static void* sHilog = dlopen("libhilog_ndk.z.so", RTLD_NOW); \
++    static OhLogPrintFn sPrint =                             \
++        sHilog ? (OhLogPrintFn)dlsym(sHilog, "OH_LOG_Print") : nullptr; \
++    if (sPrint) {                                            \
++      sPrint(0, 4, 0, "OHOSDEC", __VA_ARGS__);               \
++    }                                                        \
++  } while (0)
++
++
++namespace {
++
++// The OHOS NDK codec libraries are loaded at runtime: linking libxul against
++// the NDK stubs fails with "undefined hidden symbol" for these entry points.
++struct OhosCodecApi {
++  void* vdec = nullptr;
++  void* core = nullptr;
++
++  decltype(&OH_VideoDecoder_CreateByMime) createByMime = nullptr;
++  decltype(&OH_VideoDecoder_Destroy) destroy = nullptr;
++  decltype(&OH_VideoDecoder_Configure) configure = nullptr;
++  decltype(&OH_VideoDecoder_Prepare) prepare = nullptr;
++  decltype(&OH_VideoDecoder_RegisterCallback) registerCallback = nullptr;
++  decltype(&OH_VideoDecoder_Start) start = nullptr;
++  decltype(&OH_VideoDecoder_Stop) stop = nullptr;
++  decltype(&OH_VideoDecoder_Flush) flush = nullptr;
++  decltype(&OH_VideoDecoder_PushInputBuffer) pushInput = nullptr;
++  decltype(&OH_VideoDecoder_FreeOutputBuffer) freeOutput = nullptr;
++  decltype(&OH_VideoDecoder_GetInputBuffer) getInput = nullptr;
++  decltype(&OH_VideoDecoder_GetOutputBuffer) getOutput = nullptr;
++  decltype(&OH_AVBuffer_GetAddr) bufAddr = nullptr;
++  decltype(&OH_AVBuffer_GetCapacity) bufCapacity = nullptr;
++  decltype(&OH_AVBuffer_GetBufferAttr) bufGetAttr = nullptr;
++  decltype(&OH_AVBuffer_SetBufferAttr) bufSetAttr = nullptr;
++  decltype(&OH_AVFormat_Create) fmtCreate = nullptr;
++  decltype(&OH_AVFormat_SetIntValue) fmtSetInt = nullptr;
++  decltype(&OH_AVFormat_Destroy) fmtDestroy = nullptr;
++
++  const char* keyWidth = "width";
++  const char* keyHeight = "height";
++  const char* keyPixelFormat = "pixel_format";
++
++  bool Load() {
++    if (createByMime) {
++      return true;
++    }
++    vdec = dlopen("libnative_media_vdec.so", RTLD_NOW | RTLD_GLOBAL);
++    core = dlopen("libnative_media_core.so", RTLD_NOW | RTLD_GLOBAL);
++    if (!vdec || !core) {
++      LOG("dlopen codec failed: %s", dlerror());
++      return false;
++    }
++#define LOAD_V(field, name)                              \
++  field = reinterpret_cast<decltype(field)>(dlsym(vdec, name)); \
++  if (!field) {                                          \
++    LOG("missing symbol %s", name);                      \
++    return false;                                        \
++  }
++#define LOAD_C(field, name)                              \
++  field = reinterpret_cast<decltype(field)>(dlsym(core, name)); \
++  if (!field) {                                          \
++    LOG("missing symbol %s", name);                      \
++    return false;                                        \
++  }
++    LOAD_V(createByMime, "OH_VideoDecoder_CreateByMime");
++    LOAD_V(destroy, "OH_VideoDecoder_Destroy");
++    LOAD_V(configure, "OH_VideoDecoder_Configure");
++    LOAD_V(prepare, "OH_VideoDecoder_Prepare");
++    LOAD_V(registerCallback, "OH_VideoDecoder_RegisterCallback");
++    LOAD_V(start, "OH_VideoDecoder_Start");
++    LOAD_V(stop, "OH_VideoDecoder_Stop");
++    LOAD_V(flush, "OH_VideoDecoder_Flush");
++    LOAD_V(pushInput, "OH_VideoDecoder_PushInputBuffer");
++    LOAD_V(freeOutput, "OH_VideoDecoder_FreeOutputBuffer");
++    LOAD_V(getInput, "OH_VideoDecoder_GetInputBuffer");
++    LOAD_V(getOutput, "OH_VideoDecoder_GetOutputBuffer");
++    LOAD_C(bufAddr, "OH_AVBuffer_GetAddr");
++    LOAD_C(bufCapacity, "OH_AVBuffer_GetCapacity");
++    LOAD_C(bufGetAttr, "OH_AVBuffer_GetBufferAttr");
++    LOAD_C(bufSetAttr, "OH_AVBuffer_SetBufferAttr");
++    LOAD_C(fmtCreate, "OH_AVFormat_Create");
++    LOAD_C(fmtSetInt, "OH_AVFormat_SetIntValue");
++    LOAD_C(fmtDestroy, "OH_AVFormat_Destroy");
++#undef LOAD_V
++#undef LOAD_C
++    return true;
++  }
++};
++
++OhosCodecApi gApi;
++
++}  // namespace
++
++OHOSVideoDecoder::OHOSVideoDecoder(const CreateDecoderParams& aParams,
++                                   const nsACString& aMime)
++    : mInfo(aParams.VideoConfig()),
++      mMimeType(aMime),
++      mImageContainer(aParams.mImageContainer),
++      mKnowsCompositor(aParams.mKnowsCompositor),
++      mMutex("OHOSVideoDecoder") {
++  mSize = mInfo.mDisplay;
++  if (mSize.width <= 0 || mSize.height <= 0) {
++    mSize = gfx::IntSize(640, 360);
++  }
++}
++
++RefPtr<MediaDataDecoder::InitPromise> OHOSVideoDecoder::Init() {
++  if (!gApi.Load()) {
++    return InitPromise::CreateAndReject(
++        MediaResult(NS_ERROR_DOM_MEDIA_NOT_SUPPORTED_ERR, "no OH_AVCodec"_ns),
++        __func__);
++  }
++  OHOS_HLOG("init: createByMime start");
++  mCodec = gApi.createByMime(mMimeType.get());
++  OHOS_HLOG("init: createByMime done");
++  if (!mCodec) {
++    return InitPromise::CreateAndReject(
++        MediaResult(NS_ERROR_DOM_MEDIA_NOT_SUPPORTED_ERR, "no codec"_ns),
++        __func__);
++  }
++  OHOS_HLOG("init: configure start");
++  OH_AVFormat* format = gApi.fmtCreate();
++  gApi.fmtSetInt(format, gApi.keyWidth, mSize.width);
++  gApi.fmtSetInt(format, gApi.keyHeight, mSize.height);
++  gApi.fmtSetInt(format, gApi.keyPixelFormat, AV_PIXEL_FORMAT_NV12);
++  OH_AVErrCode err = gApi.configure(mCodec, format);
++  OHOS_HLOG("init: configure done");
++  gApi.fmtDestroy(format);
++  if (err != AV_ERR_OK) {
++    LOG("configure failed %d", (int)err);
++    gApi.destroy(mCodec);
++    mCodec = nullptr;
++    return InitPromise::CreateAndReject(
++        MediaResult(NS_ERROR_DOM_MEDIA_FATAL_ERR, "configure failed"_ns),
++        __func__);
++  }
++  OH_AVCodecCallback cb{};
++  cb.onError = &OHOSVideoDecoder::OnError;
++  cb.onStreamChanged = &OHOSVideoDecoder::OnStreamChanged;
++  cb.onNeedInputBuffer = &OHOSVideoDecoder::OnNeedInputBuffer;
++  cb.onNewOutputBuffer = &OHOSVideoDecoder::OnNewOutputBuffer;
++  OHOS_HLOG("init: registerCallback start");
++  err = gApi.registerCallback(mCodec, cb, this);
++  OHOS_HLOG("init: registerCallback done");
++  if (err == AV_ERR_OK) {
++    OHOS_HLOG("init: start start");
++    err = gApi.start(mCodec);
++    OHOS_HLOG("init: start done");
++  }
++  if (err != AV_ERR_OK) {
++    LOG("start failed %d", (int)err);
++    gApi.destroy(mCodec);
++    mCodec = nullptr;
++    return InitPromise::CreateAndReject(
++        MediaResult(NS_ERROR_DOM_MEDIA_FATAL_ERR, "start failed"_ns), __func__);
++  }
++  mStarted = true;
++  OHOS_HLOG("init: ready");
++  return InitPromise::CreateAndResolve(TrackInfo::kVideoTrack, __func__);
++}
++
++void OHOSVideoDecoder::OnError(OH_AVCodec*, int32_t aErrorCode, void* aUserData) {
++  auto* self = static_cast<OHOSVideoDecoder*>(aUserData);
++  LOG("codec error %d", (int)aErrorCode);
++  if (self) {
++    MutexAutoLock lock(self->mMutex);
++    self->mDecodePromise.RejectIfExists(
++        MediaResult(NS_ERROR_DOM_MEDIA_FATAL_ERR, "OHOS decoder error"_ns),
++        __func__);
++  }
++}
++
++void OHOSVideoDecoder::OnStreamChanged(OH_AVCodec*, OH_AVFormat*, void*) {}
++
++void OHOSVideoDecoder::OnNeedInputBuffer(OH_AVCodec* aCodec, uint32_t aIndex,
++                                         OH_AVBuffer* aBuffer, void* aUserData) {
++  auto* self = static_cast<OHOSVideoDecoder*>(aUserData);
++  if (!self) {
++    return;
++  }
++  MutexAutoLock lock(self->mMutex);
++  static std::atomic<int> sNeed{0};
++  int n = sNeed.fetch_add(1);
++  if (n % 10 == 0) { OHOSStatGlobal("STAT needInput", n, (int)self->mFrames.Length(), (int)self->mFreeInputs.Length()); }
++  if (n % 60 == 0) { OHOS_HLOG("needInput #%{public}d idx=%{public}d", n, (int)aIndex); }
++  self->mFreeInputs.AppendElement(FreeInputBuffer{aIndex, aBuffer});
++  self->TryPushInput();
++  if (!self->mDecodePromise.IsEmpty()) {
++    DecodedData ready;
++    ready.SwapElements(self->mFrames);
++    OHOSPtrTag("RESOLVE", self, (int)ready.Length(), 0);
++    OHOS_HLOG("needInput resolve frames=%{public}d", (int)ready.Length());
++    if (ready.Length() > 0) { OHOSMarker("RESOLVE_FRAMES"); }
++    self->mDecodePromise.ResolveIfExists(std::move(ready), __func__);
++  }
++}
++
++void OHOSVideoDecoder::TryPushInput() {
++  if (!mCodec) {
++    return;
++  }
++  OHOS_HLOG("tryPush free=%{public}d pending=%{public}d eos=%{public}d",
++            (int)mFreeInputs.Length(), mPendingSample ? 1 : 0, mEOS ? 1 : 0);
++  while (!mFreeInputs.IsEmpty() && (mPendingSample || mEOS)) {
++    FreeInputBuffer input = mFreeInputs[0];
++    mFreeInputs.RemoveElementAt(0);
++    uint32_t index = input.mIndex;
++    OH_AVBuffer* buf = input.mBuffer;
++    if (!buf) {
++      OHOS_HLOG("input buffer null idx=%{public}d", (int)index);
++      continue;
++    }
++    if (mPendingSample) {
++      RefPtr<MediaRawData> sample = std::move(mPendingSample);
++      mPendingSample = nullptr;
++      uint8_t* addr = gApi.bufAddr(buf);
++      int32_t cap = gApi.bufCapacity(buf);
++      OHOS_HLOG("push attempt addr=%{public}p cap=%{public}d size=%{public}d",
++                (void*)addr, (int)cap, (int)sample->Size());
++      if (addr && cap > 0 && sample->Size() <= (size_t)cap) {
++        memcpy(addr, sample->Data(), sample->Size());
++        OH_AVCodecBufferAttr attr{};
++        attr.pts = sample->mTime.ToMicroseconds();
++        attr.size = (int32_t)sample->Size();
++        attr.offset = 0;
++        attr.flags = 0;
++        gApi.bufSetAttr(buf, &attr);
++        OHOS_HLOG("push input idx=%{public}d size=%{public}d", (int)index, (int)attr.size);
++        gApi.pushInput(mCodec, index);
++      }
++      return;
++    }
++    if (mEOS) {
++      OH_AVCodecBufferAttr attr{};
++      attr.pts = 0;
++      attr.size = 0;
++      attr.offset = 0;
++      attr.flags = AVCODEC_BUFFER_FLAGS_EOS;
++      gApi.bufSetAttr(buf, &attr);
++      gApi.pushInput(mCodec, index);
++      mEOS = false;
++      OHOS_HLOG("push eos");
++      return;
++    }
++  }
++}
++
++RefPtr<MediaDataDecoder::DecodePromise> OHOSVideoDecoder::Decode(
++    MediaRawData* aSample) {
++  static std::atomic<int> sDec{0};
++  int decNo = sDec.fetch_add(1);
++  OHOSPtrTag("DECODE", this, decNo, 0);
++  if (decNo % 10 == 0) { OHOSStatGlobal("STAT decode", decNo, (int)mFrames.Length(), (int)mFreeInputs.Length()); }
++  if (decNo < 60) {
++    OHOS_HLOG("decode #%{public}d size=%{public}d", decNo, (int)aSample->Size());
++  }
++  MutexAutoLock lock(mMutex);
++  if (mFrames.Length() > 0) {
++    DecodedData frames;
++    frames.SwapElements(mFrames);
++    OHOS_HLOG("decode immediate frames=%{public}d", (int)frames.Length());
++    OHOSMarker("IMMEDIATE");
++    return DecodePromise::CreateAndResolve(std::move(frames), __func__);
++  }
++  if (mPendingSample) {
++    return DecodePromise::CreateAndReject(
++        MediaResult(NS_ERROR_DOM_MEDIA_FATAL_ERR, "pending sample"_ns),
++        __func__);
++  }
++  mPendingSample = aSample;
++  RefPtr<DecodePromise> promise = mDecodePromise.Ensure(__func__);
++  TryPushInput();
++  return promise;
++}
++
++RefPtr<MediaDataDecoder::DecodePromise> OHOSVideoDecoder::Drain() {
++  MutexAutoLock lock(mMutex);
++  mEOS = true;
++  DecodedData frames;
++  frames.SwapElements(mFrames);
++  return DecodePromise::CreateAndResolve(std::move(frames), __func__);
++}
++
++RefPtr<MediaDataDecoder::FlushPromise> OHOSVideoDecoder::Flush() {
++  MutexAutoLock lock(mMutex);
++  OHOSPtrTag("FLUSH", this, (int)mFrames.Length(), 0);
++  mPendingSample = nullptr;
++  mEOS = false;
++  mFrames.Clear();
++  mDecodePromise.RejectIfExists(
++      MediaResult(NS_ERROR_DOM_MEDIA_CANCELED, "flush"_ns), __func__);
++  if (mCodec) {
++    gApi.flush(mCodec);
++  }
++  return FlushPromise::CreateAndResolve(true, __func__);
++}
++
++RefPtr<ShutdownPromise> OHOSVideoDecoder::Shutdown() {
++  MutexAutoLock lock(mMutex);
++  mShutdown = true;
++  mPendingSample = nullptr;
++  mDecodePromise.RejectIfExists(
++      MediaResult(NS_ERROR_DOM_MEDIA_CANCELED, "shutdown"_ns), __func__);
++  if (mCodec) {
++    if (mStarted) {
++      gApi.stop(mCodec);
++    }
++    gApi.destroy(mCodec);
++    mCodec = nullptr;
++  }
++  return ShutdownPromise::CreateAndResolve(true, __func__);
++}
++
++void OHOSVideoDecoder::OnNewOutputBuffer(OH_AVCodec* aCodec, uint32_t aIndex,
++                                         OH_AVBuffer* aBuffer, void* aUserData) {
++  auto* self = static_cast<OHOSVideoDecoder*>(aUserData);
++  if (!self || !self->mCodec || !aBuffer) {
++    return;
++  }
++  { static int s0 = 0; if (s0++ < 3) { OHOSPtrTag("OUTPUT", self, (int)aIndex, 0); } }
++  OH_AVCodecBufferAttr attr{};
++  gApi.bufGetAttr(aBuffer, &attr);
++  const int32_t w = self->mSize.width;
++  const int32_t h = self->mSize.height;
++  if ((attr.flags & AVCODEC_BUFFER_FLAGS_EOS) || w <= 0 || h <= 0) {
++    gApi.freeOutput(self->mCodec, aIndex);
++    if (attr.flags & AVCODEC_BUFFER_FLAGS_EOS) {
++      RefPtr<OHOSVideoDecoder> ref = self;
++      NS_DispatchBackgroundTask(NS_NewRunnableFunction(
++          "OHOSDecoderEOS", [ref]() { ref->ResolveFrames(); }));
++    }
++    return;
++  }
++  uint8_t* addr = gApi.bufAddr(aBuffer);
++  if (!addr) {
++    gApi.freeOutput(self->mCodec, aIndex);
++    return;
++  }
++  const size_t nv12Size = (size_t)w * h * 3 / 2;
++  std::vector<uint8_t> frame(addr, addr + nv12Size);
++  gApi.freeOutput(self->mCodec, aIndex);
++  static std::atomic<int> sOut{0};
++  int outNo = sOut.fetch_add(1);
++  if (outNo % 10 == 0) { OHOSStatGlobal("STAT output", outNo, (int)w, (int)h); }
++  if (outNo < 12) { OHOS_HLOG("output cb #%{public}d", outNo); }
++  if (outNo < 5) { OHOS_HLOG("output #%{public}d pts=%{public}lld", outNo, (long long)attr.pts); }
++  if (outNo == 0) {
++    OHOS_HLOG("first output w=%{public}d h=%{public}d pts=%{public}lld", w, h,
++              (long long)attr.pts);
++  }
++  RefPtr<OHOSVideoDecoder> ref = self;
++  const int64_t pts = attr.pts;
++  NS_DispatchBackgroundTask(NS_NewRunnableFunction(
++      "OHOSDecoderFrame",
++      [ref, frame = std::move(frame), w, h, pts]() {
++        ref->DecodeFrame(frame, w, h, pts);
++      }));
++}
++
++void OHOSVideoDecoder::DecodeFrame(const std::vector<uint8_t>& aFrame,
++                                   int32_t w, int32_t h, int64_t pts) {
++  const size_t ySize = (size_t)w * h;
++  const size_t uvSize = (size_t)(w / 2) * (h / 2);
++  std::vector<uint8_t> y(ySize), u(uvSize), v(uvSize);
++  memcpy(y.data(), aFrame.data(), ySize);
++  const uint8_t* uv = aFrame.data() + ySize;
++  for (int32_t j = 0; j < h / 2; j++) {
++    for (int32_t i = 0; i < w / 2; i++) {
++      u[j * (w / 2) + i] = uv[j * w + 2 * i];
++      v[j * (w / 2) + i] = uv[j * w + 2 * i + 1];
++    }
++  }
++  VideoData::YCbCrBuffer buffer;
++  buffer.mPlanes[0].mData = y.data();
++  buffer.mPlanes[0].mWidth = w;
++  buffer.mPlanes[0].mHeight = h;
++  buffer.mPlanes[0].mStride = w;
++  buffer.mPlanes[0].mSkip = 0;
++  buffer.mPlanes[1].mData = u.data();
++  buffer.mPlanes[1].mWidth = w / 2;
++  buffer.mPlanes[1].mHeight = h / 2;
++  buffer.mPlanes[1].mStride = w / 2;
++  buffer.mPlanes[1].mSkip = 0;
++  buffer.mPlanes[2].mData = v.data();
++  buffer.mPlanes[2].mWidth = w / 2;
++  buffer.mPlanes[2].mHeight = h / 2;
++  buffer.mPlanes[2].mStride = w / 2;
++  buffer.mPlanes[2].mSkip = 0;
++  buffer.mYUVColorSpace = gfx::YUVColorSpace::BT709;
++  buffer.mColorDepth = gfx::ColorDepth::COLOR_8;
++  buffer.mColorRange = gfx::ColorRange::LIMITED;
++  buffer.mChromaSubsampling = gfx::ChromaSubsampling::HALF_WIDTH_AND_HEIGHT;
++  const int64_t frameDur = 33333;
++  auto result = VideoData::CreateAndCopyData(
++      mInfo, mImageContainer, 0, media::TimeUnit::FromMicroseconds(pts),
++      media::TimeUnit::FromMicroseconds(frameDur), buffer, true,
++      media::TimeUnit::FromMicroseconds(pts), gfx::IntRect(0, 0, w, h),
++      mKnowsCompositor);
++  if (result.isErr()) {
++    OHOS_HLOG("createAndCopy failed");
++    return;
++  }
++  RefPtr<VideoData> video = result.unwrap();
++  {
++    static int sFirst = 0;
++    if (sFirst < 1) {
++      sFirst++;
++      int size = video->mImage ? (int)video->mImage->GetSize().width : -1;
++      uint64_t sum = 0;
++      for (int i = 0; i < 4096 && i < (int)ySize; i++) { sum += y[i]; }
++      char msg[96];
++      snprintf(msg, sizeof(msg), "FRAME0 imgw=%d yw=%d sum4k=%llu",
++               size, (int)w, (unsigned long long)sum);
++      OHOSMarker(msg);
++    }
++  }
++  if (!video) {
++    OHOS_HLOG("video null");
++    return;
++  }
++  MutexAutoLock lock(mMutex);
++  mFrames.AppendElement(video);
++  OHOSPtrTag("QUEUED", this, (int)mFrames.Length(), 0);
++  if (!mDecodePromise.IsEmpty()) {
++    DecodedData ready;
++    ready.SwapElements(mFrames);
++    OHOSPtrTag("DIRECT", this, (int)ready.Length(), 0);
++    mDecodePromise.ResolveIfExists(std::move(ready), __func__);
++  }
++  DecodedData frames;
++  frames.SwapElements(mFrames);
++  static std::atomic<int> sQueued{0};
++  int q = sQueued.fetch_add(1);
++  if (q % 30 == 0) { OHOS_HLOG("frame #%{public}d queued=%{public}d", q, (int)frames.Length()); }
++}
++
++void OHOSVideoDecoder::ResolveFrames() {
++  MutexAutoLock lock(mMutex);
++  if (mDecodePromise.IsEmpty()) {
++    OHOSPtrTag("EOS_NO_PROMISE", this, (int)mFrames.Length(), 0);
++    return;
++  }
++  DecodedData frames;
++  frames.SwapElements(mFrames);
++  OHOSPtrTag("EOS_RESOLVE", this, (int)frames.Length(), 0);
++  mDecodePromise.ResolveIfExists(std::move(frames), __func__);
++}
++
++}  // namespace mozilla
+diff --git a/dom/media/platforms/ohos/OHOSVideoDecoder.h b/dom/media/platforms/ohos/OHOSVideoDecoder.h
+new file mode 100755
+index 0000000000..0b76d14f38
+--- /dev/null
++++ b/dom/media/platforms/ohos/OHOSVideoDecoder.h
+@@ -0,0 +1,83 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#ifndef DOM_MEDIA_PLATFORMS_OHOS_OHOSVIDEODECODER_H_
++#define DOM_MEDIA_PLATFORMS_OHOS_OHOSVIDEODECODER_H_
++
++#include <multimedia/player_framework/native_avcodec_base.h>
++#include <multimedia/player_framework/native_avcodec_videodecoder.h>
++
++#include "MediaData.h"
++#include "PlatformDecoderModule.h"
++#include "mozilla/Mutex.h"
++
++#include <atomic>
++#include <vector>
++
++namespace mozilla {
++
++namespace layers {
++class ImageContainer;
++}  // namespace layers
++
++class OHOSVideoDecoder final : public MediaDataDecoder {
++ public:
++  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(OHOSVideoDecoder, override)
++  OHOSVideoDecoder(const CreateDecoderParams& aParams, const nsACString& aMime);
++
++  RefPtr<InitPromise> Init() override;
++  RefPtr<DecodePromise> Decode(MediaRawData* aSample) override;
++  RefPtr<DecodePromise> Drain() override;
++  RefPtr<FlushPromise> Flush() override;
++  RefPtr<ShutdownPromise> Shutdown() override;
++  bool IsHardwareAccelerated(nsACString&) const override { return true; }
++  nsCString GetCodecName() const override { return "ohos-hw"_ns; }
++  ConversionRequired NeedsConversion() const override {
++    return ConversionRequired::kNeedAnnexB;
++  }
++  nsCString GetDescriptionName() const override {
++    return "OHOSVideoDecoder (OH_AVCodec HW)"_ns;
++  }
++
++ private:
++  ~OHOSVideoDecoder() override = default;
++
++  static void OnError(OH_AVCodec* aCodec, int32_t aErrorCode, void* aUserData);
++  static void OnStreamChanged(OH_AVCodec* aCodec, OH_AVFormat* aFormat,
++                              void* aUserData);
++  static void OnNeedInputBuffer(OH_AVCodec* aCodec, uint32_t aIndex,
++                                OH_AVBuffer* aBuffer, void* aUserData);
++  static void OnNewOutputBuffer(OH_AVCodec* aCodec, uint32_t aIndex,
++                                OH_AVBuffer* aBuffer, void* aUserData);
++
++  void HandleOutput(uint32_t aIndex, OH_AVBuffer* aBuffer);
++  void TryPushInput();
++  void DecodeFrame(const std::vector<uint8_t>& aFrame, int32_t w, int32_t h,
++                   int64_t pts);
++  void ResolveFrames();
++
++  const VideoInfo mInfo;
++  const nsCString mMimeType;
++  layers::ImageContainer* mImageContainer = nullptr;
++  layers::KnowsCompositor* mKnowsCompositor = nullptr;
++  OH_AVCodec* mCodec = nullptr;
++  gfx::IntSize mSize;
++  bool mStarted = false;
++
++  Mutex mMutex;
++  RefPtr<MediaRawData> mPendingSample;
++  struct FreeInputBuffer {
++    uint32_t mIndex;
++    OH_AVBuffer* mBuffer;
++  };
++  nsTArray<FreeInputBuffer> mFreeInputs;
++  nsTArray<RefPtr<MediaData>> mFrames;
++  MozPromiseHolder<DecodePromise> mDecodePromise;
++  bool mEOS = false;
++  bool mShutdown = false;
++};
++
++}  // namespace mozilla
++
++#endif
+diff --git a/dom/media/platforms/ohos/moz.build b/dom/media/platforms/ohos/moz.build
+new file mode 100644
+index 0000000000..3ba559e35d
+--- /dev/null
++++ b/dom/media/platforms/ohos/moz.build
+@@ -0,0 +1,11 @@
++# -*- Mode: python; indent-tabs-mode: nil; tab-width: 4 -*-
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this
++# file, You can obtain one at http://mozilla.org/MPL/2.0/.
++
++UNIFIED_SOURCES += [
++    "OHOSDecoderModule.cpp",
++    "OHOSVideoDecoder.cpp",
++]
++
++FINAL_LIBRARY = "xul"
 diff --git a/dom/media/systemservices/VideoEngine.cpp b/dom/media/systemservices/VideoEngine.cpp
 index 825530e124..66816fb0a0 100644
 --- a/dom/media/systemservices/VideoEngine.cpp
@@ -85191,10 +86035,10 @@ index 0000000000..bc0e023436
 +
 +JAR_MANIFESTS += ["jar.mn"]
 diff --git a/mobile/shared/chrome/geckoview/geckoview.js b/mobile/shared/chrome/geckoview/geckoview.js
-index 6ec21489e9..0b95697594 100644
+index 6ec21489e9..33d72b351b 100644
 --- a/mobile/shared/chrome/geckoview/geckoview.js
 +++ b/mobile/shared/chrome/geckoview/geckoview.js
-@@ -40,6 +40,220 @@ XPCOMUtils.defineLazyScriptGetter(
+@@ -40,6 +40,226 @@ XPCOMUtils.defineLazyScriptGetter(
  // by the child scripts.
  /* global debug, warn */
  
@@ -85278,6 +86122,12 @@ index 6ec21489e9..0b95697594 100644
 +    }
 +
 +    const browser = createBrowser();
++    browser.addEventListener("pageshow", function () {
++      ohosInstallNewTabHooks(browser);
++    }, true);
++    browser.addEventListener("load", function () {
++      ohosInstallNewTabHooks(browser);
++    }, true);
 +    browser.addEventListener("contextmenu", function (ev) {
 +      try {
 +        ev.preventDefault();
@@ -85415,7 +86265,7 @@ index 6ec21489e9..0b95697594 100644
  /**
   * ModuleManager creates and manages GeckoView modules. Each GeckoView module
   * normally consists of a JSM module file with an optional content module file.
-@@ -51,7 +265,47 @@ XPCOMUtils.defineLazyScriptGetter(
+@@ -51,7 +271,47 @@ XPCOMUtils.defineLazyScriptGetter(
   */
  var ModuleManager = {
    get _initData() {
@@ -85464,7 +86314,7 @@ index 6ec21489e9..0b95697594 100644
    },
  
    init(aBrowser, aModules) {
-@@ -64,14 +318,12 @@ var ModuleManager = {
+@@ -64,14 +324,12 @@ var ModuleManager = {
      this._modules = new Map(
        (function* () {
          for (const module of aModules) {
@@ -85485,7 +86335,7 @@ index 6ec21489e9..0b95697594 100644
          }
        })()
      );
-@@ -83,9 +335,10 @@ var ModuleManager = {
+@@ -83,9 +341,10 @@ var ModuleManager = {
      // visible. To avoid flickering when changing tabs, we preserve layers for
      // all loaded tabs.
      aBrowser.preserveLayers(true);
@@ -85499,7 +86349,7 @@ index 6ec21489e9..0b95697594 100644
  
      WindowEventDispatcher.registerListener(this, [
        "GeckoView:UpdateModuleState",
-@@ -107,14 +360,24 @@ var ModuleManager = {
+@@ -107,14 +366,24 @@ var ModuleManager = {
        }
      });
  
@@ -85531,7 +86381,7 @@ index 6ec21489e9..0b95697594 100644
    },
  
    onPrintWindow(aParams) {
-@@ -521,7 +784,9 @@ class ModuleInfo {
+@@ -521,7 +790,9 @@ class ModuleInfo {
  }
  
  function createBrowser() {
@@ -85542,7 +86392,7 @@ index 6ec21489e9..0b95697594 100644
    // Identify this `<browser>` element uniquely to Marionette, devtools, etc.
    // Use the JSM global to create the permanentKey, so that if the
    // permanentKey is held by something after this window closes, it
-@@ -532,9 +797,22 @@ function createBrowser() {
+@@ -532,9 +803,22 @@ function createBrowser() {
    browser.setAttribute("type", "content");
    browser.setAttribute("primary", "true");
    browser.setAttribute("flex", "1");
@@ -85568,7 +86418,7 @@ index 6ec21489e9..0b95697594 100644
    browser.setAttribute("messagemanagergroup", "browsers");
    browser.setAttribute("manualactiveness", "true");
  
-@@ -550,11 +828,221 @@ function InitLater(fn, object, name) {
+@@ -550,11 +834,290 @@ function InitLater(fn, object, name) {
    return DelayedInit.schedule(fn, object, name, 15000 /* 15s max wait */);
  }
  
@@ -85612,6 +86462,75 @@ index 6ec21489e9..0b95697594 100644
 +// ohos: 最小内容区右键/长按菜单(交给 OHOSMenuBridge → ArkTS 浮层)
 +// 触发条件: popup id = contentAreaContextMenu + openPopupAtScreen(...,isContextMenu=true)
 +// + pref ohos.menu.native_overlay=true
++function ohosOpenNewTab(aUrl) {
++  try {
++    if (!aUrl) {
++      return;
++    }
++    Services.obs.notifyObservers(null, "airweb-tab-state",
++      JSON.stringify({ session: "__opentab__", title: "", url: String(aUrl) }));
++  } catch (e) {}
++}
++
++function ohosInstallNewTabHooks(aBrowser) {
++  try {
++    const doc = aBrowser.contentDocument;
++    if (!doc || doc.__ohosNewTabHooked) {
++      return;
++    }
++    doc.__ohosNewTabHooked = true;
++    doc.addEventListener("click", (ev) => {
++      try {
++        if (ev.button !== 0) {
++          return;
++        }
++        const a = ev.target && ev.target.closest ? ev.target.closest("a[href]") : null;
++        if (a && (a.target === "_blank" || a.getAttribute("target") === "_blank")) {
++          ev.preventDefault();
++          ev.stopPropagation();
++          ohosOpenNewTab(a.href);
++        }
++      } catch (e) {}
++    }, true);
++    const w0 = aBrowser.contentWindow;
++    if (w0 && !w0.__ohosScrollHooked) {
++      w0.__ohosScrollHooked = true;
++      let last = 0;
++      const report = () => {
++        try {
++          const win = aBrowser.contentWindow;
++          const doc = aBrowser.contentDocument;
++          if (!win || !doc) {
++            return;
++          }
++          const y = win.scrollY || doc.documentElement.scrollTop || 0;
++          const max = Math.max(0, (doc.documentElement.scrollHeight || 0) - (win.innerHeight || 0));
++          Services.obs.notifyObservers(null, "airweb-tab-state",
++            JSON.stringify({ session: "__scroll__", title: "", url: JSON.stringify({ y: y, max: max }) }));
++        } catch (e) {}
++      };
++      w0.addEventListener("scroll", () => {
++        const now = Date.now();
++        if (now - last > 120) {
++          last = now;
++          report();
++        }
++      }, { passive: true });
++      report();
++    }
++    const w = aBrowser.contentWindow;
++    if (w && !w.__ohosOpenHooked) {
++      w.__ohosOpenHooked = true;
++      w.open = function (url) {
++        if (url) {
++          ohosOpenNewTab(url);
++        }
++        return null;
++      };
++    }
++  } catch (e) {}
++}
++
 +function ohosClipboardWrite(aText) {
 +  try {
 +    if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -85792,7 +86711,7 @@ index 6ec21489e9..0b95697594 100644
      {
        name: "GeckoViewContent",
        onInit: {
-@@ -856,28 +1344,78 @@ function startup() {
+@@ -856,28 +1419,78 @@ function startup() {
          resource: "resource://gre/modules/GeckoViewTranslations.sys.mjs",
        },
      },
@@ -85824,7 +86743,7 @@ index 6ec21489e9..0b95697594 100644
 +  if (!browser) {
 +    dump("[OHOS_TAB] 首标签创建失败!\n");
 +  }
- 
++
 +  // v88: window.browser / window.moduleManager 改为 getter,返回当前选中标签的对象
 +  // 保持 GeckoViewTab.sys.mjs 等 8+ 处 window.browser 引用透明跟随选中标签
 +  Object.defineProperty(window, "browser", {
@@ -85839,7 +86758,7 @@ index 6ec21489e9..0b95697594 100644
 +      return TabManager.getSelectedModuleManager();
 +    },
 +  });
-+
+ 
 +  // remoteness 切换钩子:绑定到当前 browser(标签切换时由各自 moduleManager 处理)
    if (!Services.appinfo.sessionHistoryInParent) {
      browser.prepareToChangeRemoteness = () =>
@@ -85883,7 +86802,7 @@ index 6ec21489e9..0b95697594 100644
    };
  
    Services.tm.dispatchToMainThread(() => {
-@@ -945,10 +1483,43 @@ function startup() {
+@@ -945,10 +1558,43 @@ function startup() {
      );
    });
  
@@ -122758,7 +123677,7 @@ index e63e3e7442..170be4a7ce 100644
 +OHOS_SetMainWindowId
 +#endif
 diff --git a/toolkit/library/moz.build b/toolkit/library/moz.build
-index 161ad33eb7..5c064e095d 100644
+index 161ad33eb7..7d8e0d7898 100644
 --- a/toolkit/library/moz.build
 +++ b/toolkit/library/moz.build
 @@ -283,6 +283,24 @@ if CONFIG["OS_ARCH"] == "Linux" and CONFIG["OS_TARGET"] != "Android":
@@ -122786,6 +123705,12 @@ index 161ad33eb7..5c064e095d 100644
  if CONFIG["MOZ_ANDROID_GOOGLE_VR"]:
      OS_LIBS += [
          "-L%s" % CONFIG["MOZ_ANDROID_GOOGLE_VR_LIBS"],
+@@ -426,3 +444,5 @@ if CONFIG["COMPILE_ENVIRONMENT"]:
+     EXPORTS += [
+         "buildid_section.h",
+     ]
++
++LDFLAGS += ["-L/opt/ohos-sdk/native/sysroot/usr/lib/aarch64-linux-ohos"]
 diff --git a/toolkit/locales/en-US/chrome/global/aboutStudies.properties b/toolkit/locales/en-US/chrome/global/aboutStudies.properties
 index d584c94556..095691aaf0 100644
 --- a/toolkit/locales/en-US/chrome/global/aboutStudies.properties

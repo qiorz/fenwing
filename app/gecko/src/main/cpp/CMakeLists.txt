@@ -72,6 +72,7 @@ endif()
 target_link_libraries(gecko_napi PUBLIC
     libace_napi.z.so
     libhilog_ndk.z.so
+    libnative_media_codecbase.so
 )
 
 if(GECKO_HAVE_MOZJS)

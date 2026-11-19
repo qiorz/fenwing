@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/pages/Index.ets'
 b=open(p,'rb').read()
 if b.startswith(b'\xef\xbb\xbf'): b=b[3:]

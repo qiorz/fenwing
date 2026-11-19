@@ -15,7 +15,7 @@ const DOMAIN = 0x0000;
 const BENCH_PAGE_HTML: string = '<html><head><title>bench</title></head><body><script>function ms(f){var t=performance.now();f();return Math.round(performance.now()-t);}function fib(n){return n<2?n:fib(n-1)+fib(n-2);}function run(){var r=[];for(var k=0;k<3;k++){var a=ms(function(){fib(27);});var b=ms(function(){var o={x:0};for(var i=0;i<5000000;i++){o.x+=i;}});var c=ms(function(){var a=[];for(var i=0;i<1000000;i++){a.push(i);}a.map(function(v){return v*2;}).reduce(function(p,q){return p+q;},0);});var d=ms(function(){var s="";for(var i=0;i<50000;i++){s+="ab";}s.split("").join("");});r.push("fib="+a+",obj="+b+",arr="+c+",str="+d);}document.title="BENCH "+r.join(" | ");}setTimeout(run,800);</script></body></html>';
 
 
-const DEMO_PAGE_HTML: string = '<html><head><title>P1 demo</title></head><body style="font-size:26px;padding:36px"><p><a href="https://example.com/">示例链接</a></p><p><img id="img" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMjQwIj48cmVjdCB3aWR0aD0iMjQwIiBoZWlnaHQ9IjI0MCIgZmlsbD0iIzRDNkZGRiIvPjxjaXJjbGUgY3g9IjEyMCIgY3k9IjEyMCIgcj0iNjAiIGZpbGw9IiNGRkQxNjYiLz48dGV4dCB4PSIxMjAiIHk9IjEzMCIgZm9udC1zaXplPSIyOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzEyMTIxQSI+SU1HPC90ZXh0Pjwvc3ZnPg==" width="240" height="240"></p><p><input type="file" id="f" style="font-size:26px;width:620px"></p><p><select id="s" style="font-size:26px;padding:10px"><option>AAA</option><option>BBB</option><option>CCC</option></select></p><p><button onclick="dl()" style="font-size:26px;padding:16px">下载测试</button></p><p><button onclick="fs()" style="font-size:26px;padding:16px">全屏测试</button></p><script>function dl(){var b=new Blob(["hello-download"],{type:"text/plain"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="hello.txt";document.body.appendChild(a);a.click();}function fs(){document.documentElement.requestFullscreen();}</script></body></html>';
+const DEMO_PAGE_HTML: string = '<html><head><title>P1 demo</title></head><body style="font-size:26px;padding:36px"><p><a href="https://example.com/">示例链接</a></p><p><a href="https://example.com/?blank=1" target="_blank">新标签链接</a></p><p><img id="img" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMjQwIj48cmVjdCB3aWR0aD0iMjQwIiBoZWlnaHQ9IjI0MCIgZmlsbD0iIzRDNkZGRiIvPjxjaXJjbGUgY3g9IjEyMCIgY3k9IjEyMCIgcj0iNjAiIGZpbGw9IiNGRkQxNjYiLz48dGV4dCB4PSIxMjAiIHk9IjEzMCIgZm9udC1zaXplPSIyOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzEyMTIxQSI+SU1HPC90ZXh0Pjwvc3ZnPg==" width="240" height="240"></p><p><video id="v" src="__VIDEO__" autoplay loop muted playsinline controls width="640" height="360"></video></p><p><input type="file" id="f" style="font-size:26px;width:620px"></p><p><select id="s" style="font-size:26px;padding:10px"><option>AAA</option><option>BBB</option><option>CCC</option></select></p><p><button onclick="dl()" style="font-size:26px;padding:16px">下载测试</button></p><p><button onclick="fs()" style="font-size:26px;padding:16px">全屏测试</button></p><script>function dl(){var b=new Blob(["hello-download"],{type:"text/plain"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="hello.txt";document.body.appendChild(a);a.click();}function fs(){document.documentElement.requestFullscreen();}</script></body></html>';
 
 export default class EntryAbility extends UIAbility {
   private titleSeq: number = 0;
@@ -37,6 +37,18 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('debugCtxMenu', this.paramIsOne(want, 'ctxmenu'));
     AppStorage.setOrCreate('menuAuto', this.paramIsOne(want, 'menuauto'));
     AppStorage.setOrCreate('diagMode', this.paramIsOne(want, 'diag'));
+    AppStorage.setOrCreate('softDecode', this.paramIsOne(want, 'swdecode'));
+    try {
+      const flag = `${this.context.filesDir}/hwdecode.off`;
+      if (this.paramIsOne(want, 'swdecode')) {
+        const f = fs.openSync(flag, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY);
+        fs.closeSync(f);
+      } else {
+        fs.unlinkSync(flag);
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, 'GeckoBoot', 'hwdecode flag failed: %{public}s', JSON.stringify(e));
+    }
     hilog.info(DOMAIN, 'GeckoBoot', 'previous run unclean=%{public}s', `${unclean}`);
     hilog.info(DOMAIN, 'GeckoBoot', 'launch params perf=%{public}s nojit=%{public}s',
       `${perf}`, `${nojit}`);
@@ -91,7 +103,7 @@ export default class EntryAbility extends UIAbility {
           AppStorage.setOrCreate('geckoFullscreen', fullscreen);
         },
         onTitle: (title: string, url: string, session: string) => {
-          if (title.length > 0 || session === '__opentab__') {
+          if (title.length > 0 || session === '__opentab__' || session === '__scroll__') {
             // Sequence makes every event distinct even for equal titles.
             this.titleSeq += 1;
             AppStorage.setOrCreate('geckoTitleEvent', JSON.stringify({
@@ -150,10 +162,21 @@ export default class EntryAbility extends UIAbility {
       }
       let startUrl: string = 'https://example.com/';
       if (demo) {
+        // copy bundled test clip so the demo page has a local H.264 source
+        const clipPath: string = this.context.filesDir + '/test720.mp4';
+        try {
+          const clip: Uint8Array = this.context.resourceManager.getRawFileContentSync('test720.mp4');
+          const fd = fs.openSync(clipPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
+          fs.writeSync(fd.fd, clip.buffer);
+          fs.closeSync(fd);
+        } catch (clipError) {
+          hilog.warn(DOMAIN, 'GeckoBoot', 'clip copy failed');
+        }
+        const demoHtml: string = DEMO_PAGE_HTML.replace('__VIDEO__', 'file://' + clipPath);
         const demoPath: string = this.context.filesDir + '/demo.html';
         try {
           const demoFd = fs.openSync(demoPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
-          fs.writeSync(demoFd.fd, DEMO_PAGE_HTML);
+          fs.writeSync(demoFd.fd, demoHtml);
           fs.closeSync(demoFd);
         } catch (demoError) {
           hilog.warn(DOMAIN, 'GeckoBoot', 'demo write failed');
@@ -179,7 +202,7 @@ export default class EntryAbility extends UIAbility {
       const engineArgs: string = nojit ? '--airweb-force-no-jit' : '';
       if (AppStorage.get<boolean>('diagMode') === true) {
         setTimeout(() => {
-          const files: string[] = ['gecko_xre_diag.txt', 'gecko_debug.txt'];
+          const files: string[] = ['ohosdec.log', 'gecko_debug.txt'];
           for (let fi = 0; fi < files.length; fi++) {
             const tail: string = GeckoEngine.readLogTail(`${this.context.filesDir}/${files[fi]}`, 20000);
             for (let i = 0; i < tail.length; i += 1000) {
@@ -192,7 +215,14 @@ export default class EntryAbility extends UIAbility {
       setTimeout(() => {
         try {
           GeckoViewBoot.setBoolPref('ohos.menu.native_overlay', true);
+    GeckoViewBoot.setBoolPref('media.ohos.hw_decode', !(AppStorage.get<boolean>('softDecode') === true));
           GeckoViewBoot.setBoolPref('ohos.menu.autotest', AppStorage.get<boolean>('menuAuto') === true);
+          try {
+            const codecs: string = GeckoEngine.codecProbe();
+            hilog.info(DOMAIN, 'GeckoBoot', 'video decoders: %{public}s', codecs.substring(0, 1500));
+          } catch (probeError) {
+            hilog.warn(DOMAIN, 'GeckoBoot', 'codec probe failed');
+          }
           hilog.info(DOMAIN, 'GeckoBoot', 'native menu pref enabled');
         } catch (menuPrefError) {
           hilog.warn(DOMAIN, 'GeckoBoot', 'native menu pref failed');

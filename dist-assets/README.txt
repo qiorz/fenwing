@@ -1,4 +1,4 @@
-Fenwing — Gecko 引擎二进制包 v1.2.0
+Fenwing — Gecko 引擎二进制包 v1.3.0
 ==================================
 
 内容
@@ -15,10 +15,11 @@ Fenwing — Gecko 引擎二进制包 v1.2.0
 
 体积（相对 v1.0.0）
 -------------------
-  gecko libs        302 MB（未 strip）→ 213 MB
-  omni.ja           65.5 MB（STORED）  → 20.4 MB（deflate -6）
-  HSP 安装包         292.3 MB           → 250.2 MB（-14.4%）
-  首帧冷启动         5890 ms            → 5858 ms（无退化）
+  gecko libs        205 MB（全量 strip）
+  libxul.so         176 MB（启用 --disable-webrtc 重编）
+  omni.ja           62.4 MB（STORED；换 deflate 可降到约 20 MB）
+  HSP 安装包         283.8 MB
+  720p H.264 CPU    硬解 10–25% vs 软解 67–111%（--ps swdecode 1 切换）
 
 来源
 ----

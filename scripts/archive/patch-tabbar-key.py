@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/components/TabBar.ets'
 s=io.open(p,encoding='utf-8').read()
 old="""        }, (chip: TabChip) => chip.id)"""

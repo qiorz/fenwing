@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/scripts/p15-compact.py'
 s=io.open(p,encoding='utf-8').read()
 old='''    a = "      if (handlers.onDownload !== undefined) {"

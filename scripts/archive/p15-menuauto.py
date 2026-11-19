@@ -1,4 +1,4 @@
-import io
+﻿import io
 # geckoview.js: auto-open popup when pref ohos.menu.autotest=true
 p='/home/dev/ff/gecko/obj-aarch64-unknown-linux-ohos/dist/bin/chrome/geckoview/content/geckoview.js'
 s=io.open(p,encoding='utf-8').read()

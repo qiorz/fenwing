@@ -49,19 +49,21 @@ HarmonyOS/OpenHarmony 平台适配层并非从零开始，它站在社区工作�
   地址栏历史/书签补全；
 - P3：`build-all` / `verify-snapshot` / `install-device` / `smoke-test` / `soak-test`
   与本地 CI；
-- P4：去 Firefox 品牌（AirWeb → Fenwing）、随包许可三件套、权限与隐私说明。
+- P4：去 Firefox 品牌（AirWeb → Fenwing）、随包许可三件套、权限与隐私说明；
+- Phase 1：`dom/media/platforms/ohos/` 硬件解码（H.264/HEVC，CPU 约为软解 1/3–1/8）；
+- UX：UA 模式（标准/桌面）、页面滚动指示条、`codecProbe()` 解码器能力探测。
 
 ## 4. 二进制产物
 
-`Releases` 里的 `fenwing-engine-1.2.0.zip` 由上述树编译：
+`Releases` 里的 `fenwing-engine-1.3.0.zip` 由上述树编译：
 
 | 文件 | 说明 |
 |---|---|
-| `libxul.so` (185 MB) | Gecko 主库，strip 后、带 `.permission`（JIT 版） |
+| `libxul.so` (176 MB) | Gecko 主库，strip 后、带 `.permission`（JIT + 硬解版） |
 | `libgeckoview.so` | OHOS 平台层 |
 | `libgeckoxcomp.so` | 同一 NAPI 模块副本，去掉 build-id 供 XComponent 触发注册 |
 | `libmozjs*.so` / NSS / NSPR / gkcodecs … | 运行时依赖（全量 strip） |
-| `omni.ja` (20.4 MB) | GRE 资源包（deflate） |
+| `omni.ja` (62.4 MB) | GRE 资源包（STORED；deflate 可降到约 20 MB） |
 
 MPL-2.0 对二进制分发的要求是「提供对应源码的获取方式」——本仓库的 `engine/` + 
 [`docs/SOURCE-OFFER.md`](../docs/SOURCE-OFFER.md) 满足这一点：基线提交公开可得，补丁在本仓库内。

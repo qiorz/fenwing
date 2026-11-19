@@ -1,4 +1,4 @@
-import io,re
+﻿import io,re
 R='/mnt/d/ff-ohos/work/firefoxport'
 # restore JIT flag
 p=R+'/gecko/src/main/ets/GeckoViewBoot.ets'

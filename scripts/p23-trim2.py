@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/home/dev/ff/gecko/mozconfig'
 s=io.open(p,encoding='utf-8').read()
 s=s.replace('ac_add_options --disable-webcodecs\n','').replace('ac_add_options --disable-webgpu\n','')

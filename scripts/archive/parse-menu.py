@@ -1,4 +1,4 @@
-import json
+﻿import json
 d=json.load(open('/mnt/d/ff-ohos/logs/ml.json',encoding='utf-8'))
 want=['刷新页面','复制链接','显示工具栏','禁用项示例']
 def walk(n):

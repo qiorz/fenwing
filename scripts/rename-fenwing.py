@@ -1,4 +1,4 @@
-import io,json
+﻿import io,json
 # AppScope app_name
 p='/mnt/d/ff-ohos/work/firefoxport/AppScope/resources/base/element/string.json'
 d=json.load(io.open(p,encoding='utf-8'))

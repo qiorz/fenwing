@@ -51,6 +51,6 @@ Fenwing 曾用名 "Firefox for HarmonyOS"（中间短暂使用 AirWeb，因重�
 
 四、二进制附件与源码获取
 ------------------------
-Releases 中的 fenwing-engine-1.2.0.zip 由本仓库补丁 + 上述上游构建而成，按 MPL-2.0
+Releases 中的 fenwing-engine-1.3.0.zip 由本仓库补丁 + 上述上游构建而成，按 MPL-2.0
 分发。对应源码获取方式见 docs/SOURCE-OFFER.md 与 engine/PROVENANCE.md 第 4 节；
 Gecko 基线修订公开可得，移植改动即本仓库 engine/patches/。

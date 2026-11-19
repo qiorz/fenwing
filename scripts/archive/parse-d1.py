@@ -1,4 +1,4 @@
-import json
+﻿import json
 d=json.load(open('/mnt/d/ff-ohos/logs/d1.json',encoding='utf-8'))
 want=['下载','书签','历史','设置']
 def walk(n):

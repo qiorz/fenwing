@@ -1,4 +1,4 @@
-import io, shutil
+﻿import io, shutil
 ROOT='/mnt/d/ff-ohos/work/firefoxport'
 # declare kernel permissions (needed for DevEco auto-signing to apply for ACL)
 p=ROOT+'/entry/src/main/module.json5'

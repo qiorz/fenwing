@@ -44,7 +44,12 @@ Gecko 浏览器内核：不是 ArkTS 里套 `Web` 组件，而是把 Firefox 的
 | 触摸 / 鼠标 / 键盘 → APZ → DOM | ✅ | `[OHOS_ACT] DispatchClickEvents` 命中元素 |
 | 输入法（Gecko 输入框 ↔ 系统键盘） | ✅ | ![](evidence/04-ime-keyboard.jpg) |
 | 真实网络（HTTPS + INTERNET 权限） | ✅ | example.com 加载渲染 |
-| 紧凑界面：地址栏单行 + 底栏三行压两行 | ✅ | ![](evidence/01-airweb.jpg) |
+| GPU 合成（WebRender + RenderCompositorEGL） | ✅ | KHR_partial_update，无 SWGL 回退 |
+| H.264 / HEVC **硬件解码**（OH_AVCodec） | ✅ | CPU **10–25%**，软解同场景 67–111% |
+| 解码器能力探测（`codecProbe`） | ✅ | 启动日志 + 设置页展示 |
+| UA 模式切换（标准 / 桌面） | ✅ | 设置项 → `general.useragent.override` |
+| 页面滚动指示条 | ✅ | 滚动时浮层显示进度 |
+| 紧凑界面：地址栏单行 + 底栏三行压两行 | ✅ | ![](evidence/01-fenwing.jpg) |
 | 原生菜单浮层（XUL popup → ArkTS，含子菜单/勾选/快捷键） | ✅ UI 通路 | ![](evidence/02-native-menu.jpg) |
 | 链接“在新标签页打开”、保存图片、复制图片/页面地址 | ✅ | P2-2 真机日志 |
 | 下载管理：记录落库、打开、清空（删文件） | ✅ | ![](evidence/03-downloads.jpg) |
@@ -69,17 +74,20 @@ ELF 段；没有 ACL 时引擎自动降级解释器。详见 [性能基线报告
 
 </details>
 
-## 体积（P2-3）
+## 体积与硬解（P2-3 / Phase 1）
 
-| 项 | v1.0 | v1.1 | 说明 |
+| 项 | v1.1 | v1.3 | 说明 |
 |---|---|---|---|
-| gecko libs | 302 MB | **213 MB** | `llvm-strip --strip-unneeded` 全量瘦身 |
-| `omni.ja` | 65.5 MB (STORED) | **20.4 MB** (deflate -6) | Omnijar 支持 deflate，实测可正常加载 |
-| HSP 安装包 | 292.3 MB | **250.2 MB**（-14.4%） | 真机安装/启动/加载正常 |
-| 冷启动首帧 | 5890 ms | 5858 ms | 无退化（差异在噪声内） |
+| gecko libs | 213 MB | **205 MB** | 全量 strip |
+| `libxul.so` | 185 MB | **176 MB** | 启用 `--disable-webrtc` 后重编 |
+| `omni.ja` | 20.4 MB (deflate) | **62.4 MB** (STORED) | 当前构建回到 STORED；deflate 可再省约 42 MB |
+| HSP 安装包 | 250.2 MB | **283.8 MB** | 回升主要来自 omni 与 mozjs 双份 |
+| 720p H.264 播放 CPU | 软解 67–111% | **硬解 10–25%** | 同一构建 / 同一片段，`--ps swdecode 1` 切软解对照 |
 
-> 冲 ≤200 MB 的 v2 尝试（`-Os` + `--disable-webrtc` 等）因该分支 ipdl/bindgen 兼容问题**已回退**，
-> 记录见 [P2-3 文档](docs/Firefox移植-P2-3体积与性能.md)。当前产物即 v1 的 250.2 MB 构建。
+> ≤200 MB 的裁剪尝试（`-Os` 等）因该分支 ipdl/bindgen 兼容问题回退，见
+> [P2-3 文档](docs/Firefox移植-P2-3体积与性能.md)；硬解接入与真机对比见
+> [硬件加速评估](docs/Firefox移植-硬件加速评估.md) 与
+> [Phase 1 硬件解码实现](docs/Firefox移植-Phase1硬件解码实现.md)。
 
 ## 工程化（P3）
 
@@ -123,7 +131,7 @@ CI LOCAL: PASS
 │   ├─ libgecko_napi.so  NAPI 桥（cpp/，CMake 构建）            │
 │   ├─ libxul.so         Gecko 主库（JIT 版，带 .permission）   │
 │   ├─ libgeckoview.so   OHOS 平台层（widget/openharmony）      │
-│   └─ rawfile/omni.ja   GRE 资源（deflate，20 MB）             │
+│   └─ rawfile/omni.ja   GRE 资源（STORED，62 MB）             │
 └──────────────────────────────────────────────────────────────┘
         │ NAPI / TSFN                  ▲ XUL 菜单 JSON
         ▼                              │
@@ -134,6 +142,7 @@ CI LOCAL: PASS
 │  gfx/                 RenderCompositorEGL、gfxOHosPlatform     │
 │  layout/              移动视口、paint holding、popup 抑制      │
 │  browser/             geckoview.js 菜单构造、chrome 桥         │
+│  dom/media/platforms/ohos/  OHOSDecoderModule（H.264/HEVC 硬解）│
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -148,12 +157,13 @@ fenwing/  (repo: fenwing)
 │  ├─ spec/                                      立项 / 风险 / 安全合规
 │  └─ build-profile.json5                        已脱敏：签名请在本机生成
 ├─ engine/               Gecko 侧
-│  ├─ patches/firefox-ohos-gecko-5836a06272.patch    整树补丁（5.6 MB / 1128 文件）
+│  ├─ patches/firefox-ohos-gecko-5836a06272.patch    整树补丁（5.7 MB / 1139 文件）
 │  ├─ mozconfig                                    交叉编译配置
 │  ├─ apply-port.sh                                一键打补丁
 │  └─ PROVENANCE.md                                来源、基线与社区移植层关系
+│  （硬解源码在 app/third_party/gecko/dom/media/platforms/ohos/ 也有副本）
 ├─ scripts/              P3 流水线：build / verify / install / smoke / soak / ci + archive
-├─ docs/                 技术文档（体检、P0–P4、性能、合规、两轮审视）
+├─ docs/                 技术文档（体检、P0–P4、性能、硬解、合规、两轮审视）
 ├─ evidence/             真机截图
 └─ dist-assets/          Release 附件的安装脚本与说明
 ```
@@ -162,7 +172,7 @@ fenwing/  (repo: fenwing)
 
 ### 路线 A：用现成引擎产物（约 10 分钟）
 
-1. 到 [Releases](releases) 下载 `fenwing-engine-1.2.0.zip`（约 180 MB）。
+1. 到 [Releases](releases) 下载 `fenwing-engine-1.3.0.zip`（约 100 MB）。
 2. 装好 **DevEco Studio**（HarmonyOS SDK **API 26**）与 `hdc`。
 3. 铺引擎：
 
@@ -199,8 +209,8 @@ export OHOS_SDK_NATIVE=/opt/ohos-sdk/native
 bash /path/to/scripts/stage-engine.sh
 ```
 
-补丁可复现性：在纯净 `5836a062` 检出上应用后逐字节比对 **1128 个文件，0 差异**。
-重建 `omni.ja` 时注意用 **deflate**（`zip -6`），默认 `build-omni.sh` 仍是 STORED。
+补丁可复现性：在纯净 `5836a062` 检出上应用后逐字节比对 **1139 个文件，0 差异**。
+当前构建的 `omni.ja` 是 **STORED**（62 MB）；要瘦身可换 deflate（`zip -6`，约 20 MB，见 P2-3）。
 
 ## 三个绕不过去的坑
 
@@ -223,7 +233,8 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
 ### 3. `omni.ja` 不是普通压缩包
 
 它是 mozjar 生成的 GRE 资源包，必须整体放进 `rawfile/`，运行时复制到沙箱再以目录形式传给
-`-greomni`。v1.1 起改用 deflate（20 MB），别手工解压或重打包成 STORED。
+`-greomni`。当前包内是 STORED（62 MB）；可自行 deflate 重打（约 20 MB），但必须整包替换、
+不要解压后改内容。
 
 ## 合规与品牌（P4）
 
@@ -248,6 +259,8 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
 - 地址栏补全在部分场景会被系统窗口抢焦点（已可用，未完全稳定）。
 - 2in1 窗口形态下无法真正全屏，全屏 = 隐藏外壳 + 尽力隐藏系统栏。
 - 无 minidump：崩溃取证靠 hilog + 宿主脚本抓取，`faultloggerd` 需要系统权限。
+- 硬解只覆盖 H.264/HEVC（VP9/AV1 仍走 FFmpeg 软解）；Buffer 模式每帧有 CPU 拷贝，
+  长播/多视频并发尚未做回归；`--ps swdecode 1` 可切回软解对照。
 
 ## 路线图
 
@@ -259,9 +272,11 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
 | P2-1 | 长稳 15 轮 0 崩溃、崩溃现场记录 | ✅ |
 | P2-2 | 新标签打开、保存图片、下载管理、历史/补全 | ✅ |
 | P2-3 | 体积 292→250 MB | ✅（≤200 MB 待引擎裁剪） |
+| Phase 1 | H.264/HEVC 硬件解码（CPU 10–25%） | ✅ |
+| UX | UA 模式、滚动指示条、解码器信息 | ✅ |
 | P3 | 一键脚本 + 快照校验 + 本地 CI | ✅ |
 | P4 | 品牌、许可、权限、分发合规 v1 | ✅ |
-| 下一阶段 | 真实右键菜单、≤200 MB、发布签名、扩展 UI | ⬜ |
+| 下一阶段 | 真实右键菜单、硬解长播回归、Surface/DMABuf 零拷贝、发布签名、扩展 UI | ⬜ |
 
 ## 文档
 
@@ -272,12 +287,13 @@ llvm-objcopy --add-section .permission=ports/ohos/permission.json \
   [P2-2](docs/Firefox移植-P2-2浏览器壳完善.md) · [P2-3](docs/Firefox移植-P2-3体积与性能.md) ·
   [P3](docs/Firefox移植-P3工程化.md) · [P4](docs/Firefox移植-P4合规与分发.md)
 - [性能基线（JIT vs 解释器）](docs/Firefox移植-性能基线报告.md)
+- 硬解：[硬件加速评估](docs/Firefox移植-硬件加速评估.md) · [Phase 1 硬件解码实现](docs/Firefox移植-Phase1硬件解码实现.md)
 - 合规：[SOURCE-OFFER](docs/SOURCE-OFFER.md) · [THIRD-PARTY-NOTICES](docs/THIRD-PARTY-NOTICES.md) · [PRIVACY](docs/PRIVACY.md)
 - 工程规范：[spec/](app/spec/gecko-porting-program/)（决策包、风险登记、安全合规、上游维护）
 
 ## 为什么二进制不在 Git 里
 
-GitHub 单文件硬上限 100 MB，而 `libxul.so` 185 MB、`omni.ja` 20 MB、HSP 250 MB。
+GitHub 单文件硬上限 100 MB，而 `libxul.so` 176 MB、`omni.ja` 62 MB、HSP 284 MB。
 Git LFS 免费额度 1 GB 存储 / 1 GB 月流量，一次克隆就会耗掉大半。所以：
 
 - **代码 / 补丁 / 文档** → Git（仓库约 13 MB）
@@ -298,5 +314,5 @@ Git LFS 免费额度 1 GB 存储 / 1 GB 月流量，一次克隆就会耗掉大�
 ---
 
 <div align="center">
-<sub>WSL + OHOS NDK 交叉编译，在平板上真正跑起来的内核移植 · 2026-11-18 · v1.2.0</sub>
+<sub>WSL + OHOS NDK 交叉编译，在平板上真正跑起来的内核移植 · 2026-11-19 · v1.3.0</sub>
 </div>

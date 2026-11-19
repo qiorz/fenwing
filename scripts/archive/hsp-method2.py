@@ -1,4 +1,4 @@
-import zipfile
+﻿import zipfile
 p='/mnt/d/ff-ohos/work/firefoxport/gecko/build/default/outputs/default/gecko-default-signed.hsp'
 z=zipfile.ZipFile(p)
 n=0

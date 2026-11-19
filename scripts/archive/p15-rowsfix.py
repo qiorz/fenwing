@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/pages/BrowserPage.ets'
 s=io.open(p,encoding='utf-8').read()
 old="hilog.info(DOMAIN, TAG, 'menu shown id=%{public}d rows=%{public}d', this.menuId, rows.length);"

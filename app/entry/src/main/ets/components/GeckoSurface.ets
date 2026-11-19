@@ -209,6 +209,13 @@ export struct GeckoSurface {
         .onMouse((event: MouseEvent) => {
           this.handleMouse(event);
         })
+        .onAxisEvent((event: AxisEvent) => {
+          const dx: number = event.axisHorizontal ?? 0;
+          const dy: number = event.axisVertical ?? 0;
+          if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
+            GeckoViewBoot.scroll(dx, dy, event.x * this.scaleX(), event.y * this.scaleY());
+          }
+        })
         .onKeyEvent((event: KeyEvent) => {
           return this.handleKey(event);
         })

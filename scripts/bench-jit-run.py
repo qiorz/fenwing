@@ -1,4 +1,4 @@
-import io,re
+﻿import io,re
 ROOT='/mnt/d/ff-ohos/work/firefoxport'
 p=ROOT+'/entry/src/main/ets/entryability/EntryAbility.ets'
 s=io.open(p,encoding='utf-8').read()

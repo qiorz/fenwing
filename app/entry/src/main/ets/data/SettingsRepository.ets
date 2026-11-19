@@ -21,6 +21,7 @@ export class SettingsKeys {
   static readonly THEME: string = 'browser.appearance.theme';
   static readonly DOWNLOAD_DIR: string = 'browser.download.directory';
   static readonly ENGINE_LOG_LEVEL: string = 'browser.engine.logLevel';
+  static readonly USER_AGENT: string = 'browser.general.userAgent';
 }
 
 const STORE_NAME: string = 'browser_settings';
@@ -56,6 +57,16 @@ export class SettingsRepository {
 
   getSearchEngine(): string {
     return this.requireStore().getSync(SettingsKeys.SEARCH_ENGINE, 'DuckDuckGo') as string;
+  }
+
+  getUserAgentMode(): string {
+    return this.requireStore().getSync(SettingsKeys.USER_AGENT, 'harmony') as string;
+  }
+
+  async setUserAgentMode(value: string): Promise<void> {
+    const store = this.requireStore();
+    store.putSync(SettingsKeys.USER_AGENT, value);
+    await store.flush();
   }
 
   async setSearchEngine(value: string): Promise<void> {

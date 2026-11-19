@@ -1,4 +1,4 @@
-import json
+﻿import json
 for f in ['a1']:
     d=json.load(open(f'/mnt/d/ff-ohos/logs/{f}.json',encoding='utf-8'))
     def walk(n):

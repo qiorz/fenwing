@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Gecko for HarmonyOS - NAPI bridge implementation.
  *
  * M0 scope: module registration, version/ping, lifecycle and honest
@@ -19,6 +19,7 @@
 
 #include <dlfcn.h>
 #include <hilog/log.h>
+#include <multimedia/player_framework/native_avcapability.h>
 
 // M0 Rust smoke bridge (gecko/rust/ohos-smoke). Linked only when staged.
 #ifdef GECKO_HAVE_RUST_SMOKE
@@ -540,6 +541,45 @@ napi_value gecko::JitProbe(napi_env env, napi_callback_info info) {
     return result;
 }
 
+namespace gecko {
+
+// Lists video decoders reported by OH_AVCodec and whether each is hardware.
+napi_value CodecProbe(napi_env env, napi_callback_info info) {
+    uint32_t count = 0;
+    OH_AVCapability** list = OH_AVCodec_GetCapabilityList(OH_AVCODEC_TYPE_VIDEO_DECODER, &count);
+    std::string json = "[";
+    if (list != nullptr) {
+        for (uint32_t i = 0; i < count; i++) {
+            OH_AVCapability* cap = list[i];
+            if (cap == nullptr) {
+                continue;
+            }
+            const char* name = OH_AVCapability_GetName(cap);
+            const char* mime = OH_AVCapability_GetMimeType(cap);
+            bool hw = OH_AVCapability_IsHardware(cap);
+            int32_t inst = OH_AVCapability_GetMaxSupportedInstances(cap);
+            if (i > 0) {
+                json += ",";
+            }
+            json += "{\"name\":\"";
+            json += name != nullptr ? name : "";
+            json += "\",\"mime\":\"";
+            json += mime != nullptr ? mime : "";
+            json += "\",\"hw\":";
+            json += hw ? "true" : "false";
+            json += ",\"maxInstances\":";
+            json += std::to_string(inst);
+            json += "}";
+        }
+    }
+    json += "]";
+    napi_value out;
+    napi_create_string_utf8(env, json.c_str(), NAPI_AUTO_LENGTH, &out);
+    return out;
+}
+
+}  // namespace gecko
+
 // ---------------------------------------------------------------------------
 // Module registration
 // ---------------------------------------------------------------------------
@@ -572,6 +612,7 @@ napi_value gecko::RegisterGeckoModule(napi_env env, napi_value exports) {
         {"xulSmoke", nullptr, XulSmoke, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"readLogTail", nullptr, ReadLogTail, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"jitProbe", nullptr, JitProbe, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"codecProbe", nullptr, CodecProbe, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
 
     const size_t count = sizeof(properties) / sizeof(properties[0]);

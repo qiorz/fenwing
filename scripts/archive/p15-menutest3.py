@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/entryability/EntryAbility.ets'
 s=io.open(p,encoding='utf-8').read()
 a="    this.bootGecko(perf, nojit, this.stringParam(want, 'url'), this.paramIsOne(want, 'demo'));"

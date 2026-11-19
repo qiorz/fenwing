@@ -1,4 +1,4 @@
-import io,re
+﻿import io,re
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/entryability/EntryAbility.ets'
 s=io.open(p,encoding='utf-8').read()
 s=re.sub(r"const BENCH_PAGE_HTML[^\n]*=.*?(?=\nexport default class)","",s,flags=re.S)

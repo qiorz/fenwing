@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/scripts/soak-test.ps1'
 s=io.open(p,encoding='utf-8').read()
 old="""  $rssNav = Get-Rss $appPid3

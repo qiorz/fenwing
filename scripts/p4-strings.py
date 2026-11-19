@@ -1,4 +1,4 @@
-import io,json
+﻿import io,json
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/resources/base/element/string.json'
 d=json.load(io.open(p,encoding='utf-8'))
 for s in d['string']:

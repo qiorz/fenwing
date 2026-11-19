@@ -82,3 +82,4 @@ export const readLogTail: (path: string, maxBytes?: number) => string;
 
 /** JIT capability probe: RWX mmap / mprotect / execute results. */
 export const jitProbe: () => string;
+export const codecProbe: () => string;

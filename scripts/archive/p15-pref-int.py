@@ -1,4 +1,4 @@
-import io
+﻿import io
 # wrapper: pass int32 (port expects 0/1)
 p='/mnt/d/ff-ohos/work/firefoxport/gecko/src/main/ets/GeckoViewBoot.ets'
 s=io.open(p,encoding='utf-8').read()

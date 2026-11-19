@@ -1,4 +1,4 @@
-import io, base64
+﻿import io, base64
 svg = b'''<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="#4C6FFF"/><circle cx="120" cy="120" r="60" fill="#FFD166"/><text x="120" y="130" font-size="28" text-anchor="middle" fill="#12121A">IMG</text></svg>'''
 b64 = base64.b64encode(svg).decode()
 p='/mnt/d/ff-ohos/work/firefoxport/entry/src/main/ets/entryability/EntryAbility.ets'

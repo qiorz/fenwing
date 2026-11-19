@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/scripts/p0-watchdog2.py'
 s=io.open(p,encoding='utf-8').read()
 old='''a4="      GeckoViewBoot.reloadForSession(engineIndex);\\n      this.repaintSoon();"

@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/home/dev/ff/gecko/mozconfig'
 s=io.open(p,encoding='utf-8').read()
 if 'P23-TRIM' not in s:

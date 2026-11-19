@@ -15,6 +15,7 @@ export struct SettingsView {
   @Prop searchEngine: string = 'DuckDuckGo';
   @Prop accountName: string = '';
   @Prop engineLabel: string = '';
+  @Prop uaMode: string = 'standard';
 
   onToggleJavascript: (enabled: boolean) => void = () => {
   };
@@ -31,6 +32,8 @@ export struct SettingsView {
   onImportData: () => void = () => {
   };
   onOpenDiagnostics: () => void = () => {
+  };
+  onUaModeChange: (mode: string) => void = () => {
   };
 
   @State private engineDraft: string = '';
@@ -75,6 +78,20 @@ export struct SettingsView {
     .padding({ top: 8, bottom: 8 })
   }
 
+  @Builder
+  uaButton(label: string, mode: string) {
+    Button(label)
+      .fontSize(12)
+      .height(32)
+      .layoutWeight(1)
+      .backgroundColor(this.uaMode === mode ? '#3A5A9A' : '#17171F')
+      .fontColor(this.uaMode === mode ? '#FFFFFF' : '#A0A0B8')
+      .borderRadius(6)
+      .onClick(() => {
+        this.onUaModeChange(mode);
+      })
+  }
+
   build() {
     Scroll() {
       Column({ space: 10 }) {
@@ -98,6 +115,26 @@ export struct SettingsView {
           .margin({ top: 6 })
         this.toggleRow('发送 Do Not Track', '请求站点不要跟踪', this.doNotTrack, 'dnt')
         this.toggleRow('默认隐私模式', '新标签不写历史与记录', this.privateByDefault, 'private')
+
+        Text('兼容性（浏览器标识）')
+          .fontSize(12)
+          .fontColor('#8A8AA3')
+          .width('100%')
+          .margin({ top: 6 })
+        Row({ space: 8 }) {
+          this.uaButton('标准（Gecko）', 'standard')
+          this.uaButton('手机', 'mobile')
+        }
+        .width('100%')
+        Row({ space: 8 }) {
+          this.uaButton('桌面', 'desktop')
+          this.uaButton('Chrome 兼容', 'chrome')
+        }
+        .width('100%')
+        Text('部分网站会按 UA 判断设备；遇到排版/功能异常可切换。')
+          .fontSize(11)
+          .fontColor('#7C7C96')
+          .width('100%')
 
         Text('搜索')
           .fontSize(12)

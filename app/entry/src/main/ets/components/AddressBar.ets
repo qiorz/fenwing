@@ -53,8 +53,8 @@ export struct AddressBar {
 
   build() {
     Row({ space: 6 }) {
-      Button('←')
-        .fontSize(16)
+      Button('<')
+        .fontSize(20)
         .fontColor(this.canGoBack ? '#E6E6F0' : '#4A4A5C')
         .backgroundColor('#1C1C26')
         .borderRadius(6)
@@ -65,8 +65,8 @@ export struct AddressBar {
         .onClick(() => {
           this.onBack();
         })
-      Button('→')
-        .fontSize(16)
+      Button('>')
+        .fontSize(20)
         .fontColor(this.canGoForward ? '#E6E6F0' : '#4A4A5C')
         .backgroundColor('#1C1C26')
         .borderRadius(6)
@@ -77,15 +77,21 @@ export struct AddressBar {
         .onClick(() => {
           this.onForward();
         })
-      if (this.loading) {
-        this.navButton('✕', true, () => {
-          this.onStop();
+      Button(this.loading ? '停止' : '刷新')
+        .fontSize(12)
+        .fontColor('#E6E6F0')
+        .backgroundColor('#1C1C26')
+        .borderRadius(6)
+        .width(48)
+        .height(36)
+        .padding(0)
+        .onClick(() => {
+          if (this.loading) {
+            this.onStop();
+          } else {
+            this.onReload();
+          }
         })
-      } else {
-        this.navButton('⟳', true, () => {
-          this.onReload();
-        })
-      }
 
       TextInput({ text: this.draft, placeholder: '搜索或输入网址' })
         .fontSize(14)
@@ -93,7 +99,8 @@ export struct AddressBar {
         .placeholderColor('#6E6E85')
         .backgroundColor('#1C1C26')
         .borderRadius(6)
-        .height(30)
+        .height(36)
+        .fontSize(14)
         .layoutWeight(1)
         .enterKeyType(EnterKeyType.Go)
         .onChange((value: string) => {
@@ -107,7 +114,7 @@ export struct AddressBar {
 
       Button('前往')
         .fontSize(12)
-        .height(30)
+        .height(36)
         .width(64)
         .padding(0)
         .backgroundColor('#4C6FFF')

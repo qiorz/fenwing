@@ -12,6 +12,7 @@ import {
   getVersion,
   initialize,
   isJsEngineAvailable,
+  codecProbe,
   jitProbe,
   ping,
   readLogTail,
@@ -35,6 +36,15 @@ export class EngineVersionInfo {
 
 /** Engine lifecycle + diagnostics. Sessions land in M2. */
 export class GeckoEngine {
+  /** Video decoders reported by OH_AVCodec (JSON array string). */
+  static codecProbe(): string {
+    try {
+      return codecProbe();
+    } catch (error) {
+      return '[]';
+    }
+  }
+
   private static bridgeInitialized: boolean = false;
 
   /**

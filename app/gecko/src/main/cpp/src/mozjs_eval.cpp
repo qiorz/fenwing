@@ -1,4 +1,4 @@
-/*
+﻿/*
  * SpiderMonkey adapter for evaluateScript (M1), adapted to the actual
  * SpiderMonkey 142 (Firefox 142.0a1) public API shipped by this build.
  *

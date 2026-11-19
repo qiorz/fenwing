@@ -11,12 +11,12 @@
 | target | `aarch64-unknown-linux-ohos` |
 | 工具链 | OpenHarmony 7 native SDK（clang/LLVM，API 26）+ Rust stable |
 | 构建宿主 | WSL2 Ubuntu 24.04，`./mach build -j8` |
-| 实测耗时 | 33 分 42 秒（8 vCPU），`libxul.so` 3.5 GB → strip 185 MB |
+| 实测耗时 | 33 分 42 秒（8 vCPU），`libxul.so` 3.5 GB → strip 185 MB（v1.3 起 176 MB） |
 
 ## 补丁
 
 ```
-patches/firefox-ohos-gecko-5836a06272.patch      5.6 MB   1128 个文件
+patches/firefox-ohos-gecko-5836a06272.patch      5.7 MB   1139 个文件
 patches/firefox-ohos-gecko-5836a06272.patch.gz   1.1 MB   （同一份，gzip）
 ```
 
@@ -25,6 +25,8 @@ patches/firefox-ohos-gecko-5836a06272.patch.gz   1.1 MB   （同一份，gzip）
 - 新增平台层 `widget/openharmony/`（`nsAppShell`、`nsWindow`、`OHOSNativeWindowBridge`、
   `OHOSClipboard`、`OHOSMenuBridge`、`OHOSChromeBridge` …）
 - 新增 `ports/ohos/`（NAPI 宿主、输入、IME、下载、菜单、`libxul.symbols` 导出）
+- 新增 `dom/media/platforms/ohos/`：`OHOSDecoderModule` / `OHOSVideoDecoder`，
+  H.264/HEVC 硬件解码（OH_AVCodec Buffer 模式；PDM 优先硬解、失败回退 FFmpeg）
 - `gfx/` WebRender / EGL 合成改造、`layout/` 移动视口与 paint holding、
   `browser/` chrome ArkTS 化（`ohos-chrome-bridge.js`、`phone-chrome`）、
   `xpcom/` 线程与 `Omnijar` 适配、`build/moz.configure` 的 OHOS target 识别
@@ -45,11 +47,11 @@ patches/firefox-ohos-gecko-5836a06272.patch.gz   1.1 MB   （同一份，gzip）
 
 ```
 APPLY_OK
-compared=1128 mismatches=0
+compared=1139 mismatches=0
 ```
 
-v1.0 与 v1.1 两次发布前都跑过同样的验证（v1.1 的差异是 `geckoview.js` 菜单与
-`omni.ja` 的打包方式，见下）。
+v1.0 / v1.1 / v1.2 / v1.3 每次发布前都跑过同样的验证（v1.3 的差异是硬件解码模块、
+`--disable-webrtc` 与 `omni.ja` 打包方式）。
 
 ## 应用
 
@@ -76,7 +78,7 @@ export OHOS_SDK_NATIVE=/opt/ohos-sdk/native
 产物在 `obj-aarch64-unknown-linux-ohos/dist/bin/`：
 
 ```
-libxul.so            3.5 GB（未 strip）
+libxul.so            3.5 GB（未 strip；--disable-webrtc 构建 strip 后 176 MB）
 libgeckoview.so      620 KB
 libnspr4/libnss3/libgkcodecs/libmozjs…   14 个运行时依赖
 ```
@@ -87,8 +89,8 @@ libnspr4/libnss3/libgkcodecs/libmozjs…   14 个运行时依赖
 # 1) strip 所有运行库（302 MB -> 213 MB）
 bash ../scripts/p23-strip.sh
 
-# 2) omni.ja 用 deflate 重打（65.5 MB -> 20.4 MB）
-#    注意：build-omni.sh 用的是 zip -0（STORED），要 deflate 版需手工执行同一份条目表：
+# 2)（可选）omni.ja 用 deflate 重打（65.4 MB -> 约 20 MB）
+#    当前 v1.3 构建用的是 STORED（62 MB）；要瘦身需手工执行同一份条目表：
 cd obj-aarch64-unknown-linux-ohos/dist/bin
 zip -6 -r -X /tmp/omni.ja \
   chrome defaults components modules res actors hyphenation localization dictionaries \

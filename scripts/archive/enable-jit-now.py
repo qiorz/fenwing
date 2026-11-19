@@ -1,4 +1,4 @@
-import io
+﻿import io
 ROOT='/mnt/d/ff-ohos/work/firefoxport'
 p=ROOT+'/gecko/src/main/ets/GeckoViewBoot.ets'
 s=io.open(p,encoding='utf-8').read()

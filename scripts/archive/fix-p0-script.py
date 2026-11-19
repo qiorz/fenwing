@@ -1,4 +1,4 @@
-import io
+﻿import io
 p='/mnt/d/ff-ohos/scripts/p0-browserpage.py'
 s=io.open(p,encoding='utf-8').read()
 old='''rep("""  private onGeckoPageLoadChanged(): void {

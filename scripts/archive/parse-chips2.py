@@ -1,4 +1,4 @@
-import json
+﻿import json
 d=json.load(open('/mnt/d/ff-ohos/logs/layout6.json',encoding='utf-8'))
 def walk(n):
     if not isinstance(n,dict): return
